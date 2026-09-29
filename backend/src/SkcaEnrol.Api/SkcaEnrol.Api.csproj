@@ -8,7 +8,8 @@
     <UserSecretsId>skca-enrol-api-dev</UserSecretsId>
     <!-- XML comments feed Swagger descriptions. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- 1591: missing XML comment, 1573: only some parameters documented. Both are just doc noise. -->
+    <NoWarn>$(NoWarn);1591;1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

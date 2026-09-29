@@ -26,8 +26,13 @@ public class Enrolment : BaseEntity
 
     public EnrolmentStatus Status { get; set; } = EnrolmentStatus.Submitted;
 
+    // Optimistic concurrency: mapped to PostgreSQL's hidden xmin column, which
+    // changes on every update. If two admins approve at once, the second save fails.
+    public uint Version { get; set; }
+
     public List<EnrolmentStatusHistory> History { get; set; } = new();
     public List<FeeRecord> FeeRecords { get; set; } = new();
+    public List<AgentWorkflow> Workflows { get; set; } = new();
 
     public const int ParentNotesMaxLength = 500;
 }

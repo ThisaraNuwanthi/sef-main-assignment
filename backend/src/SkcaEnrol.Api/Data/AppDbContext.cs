@@ -12,6 +12,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FeeRecord> FeeRecords => Set<FeeRecord>();
     public DbSet<EnrolmentStatusHistory> EnrolmentStatusHistory => Set<EnrolmentStatusHistory>();
 
+    // Agent workflow state
+    public DbSet<AgentWorkflow> Workflows => Set<AgentWorkflow>();
+    public DbSet<AgentStep> AgentSteps => Set<AgentStep>();
+    public DbSet<ToolCall> ToolCalls => Set<ToolCall>();
+    public DbSet<WorkflowValidationResult> ValidationResults => Set<WorkflowValidationResult>();
+    public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<User>(e =>
@@ -95,6 +102,70 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(h => h.ChangedByUser).WithMany()
                 .HasForeignKey(h => h.ChangedByUserId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(h => h.EnrolmentId);
+        });
+
+        b.Entity<Enrolment>().Property(x => x.Version).IsRowVersion();
+
+        // ---------- Agent workflow state ----------
+        b.Entity<AgentWorkflow>(e =>
+        {
+            e.ToTable("AgentWorkflows");
+            e.Property(w => w.Objective).HasMaxLength(1000).IsRequired();
+            e.Property(w => w.PlanJson).HasColumnType("jsonb");
+            e.Property(w => w.FinalOutcome).HasColumnType("jsonb");
+            e.Property(w => w.Status).HasConversion<string>().HasMaxLength(30);
+            e.Property(w => w.FailureReason).HasMaxLength(1000);
+            e.HasOne(w => w.Enrolment).WithMany(x => x.Workflows)
+                .HasForeignKey(w => w.EnrolmentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(w => w.EnrolmentId);
+            e.HasIndex(w => w.Status);
+        });
+
+        b.Entity<AgentStep>(e =>
+        {
+            e.Property(s => s.StepName).HasMaxLength(50);
+            e.Property(s => s.AgentName).HasMaxLength(50);
+            e.Property(s => s.InputJson).HasColumnType("jsonb");
+            e.Property(s => s.OutputJson).HasColumnType("jsonb");
+            e.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(s => s.Error).HasMaxLength(1000);
+            e.HasOne(s => s.Workflow).WithMany(w => w.Steps)
+                .HasForeignKey(s => s.WorkflowId).OnDelete(DeleteBehavior.Cascade);
+            // Step numbers are unique inside a workflow.
+            e.HasIndex(s => new { s.WorkflowId, s.StepNo }).IsUnique();
+        });
+
+        b.Entity<ToolCall>(e =>
+        {
+            e.Property(t => t.ToolName).HasMaxLength(50);
+            e.Property(t => t.InputJson).HasColumnType("jsonb");
+            e.Property(t => t.OutputJson).HasColumnType("jsonb");
+            e.Property(t => t.Error).HasMaxLength(1000);
+            e.HasOne(t => t.Step).WithMany(s => s.ToolCalls)
+                .HasForeignKey(t => t.StepId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(t => t.StepId);
+        });
+
+        b.Entity<WorkflowValidationResult>(e =>
+        {
+            e.ToTable("ValidationResults");
+            e.Property(v => v.RuleName).HasMaxLength(50);
+            e.Property(v => v.Severity).HasConversion<string>().HasMaxLength(10);
+            e.Property(v => v.Message).HasMaxLength(500);
+            e.HasOne(v => v.Workflow).WithMany(w => w.ValidationResults)
+                .HasForeignKey(v => v.WorkflowId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(v => v.WorkflowId);
+        });
+
+        b.Entity<ApprovalDecision>(e =>
+        {
+            e.Property(d => d.Decision).HasConversion<string>().HasMaxLength(30);
+            e.Property(d => d.Note).HasMaxLength(500);
+            e.HasOne(d => d.Workflow).WithMany(w => w.ApprovalDecisions)
+                .HasForeignKey(d => d.WorkflowId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(d => d.AdminUser).WithMany()
+                .HasForeignKey(d => d.AdminUserId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(d => d.WorkflowId);
         });
     }
 
