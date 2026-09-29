@@ -1,0 +1,7 @@
+**/bin
+**/obj
+**/uploads
+**/appsettings.Development.json
+tests/
+.config/
+*.md
