@@ -18,6 +18,12 @@ using SkcaEnrol.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cloud hosts (Railway, Render...) tell the app which port to listen on through $PORT.
+// Locally it is not set, so launchSettings/Docker's default (8080) is used instead.
+var hostPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(hostPort))
+    builder.WebHost.UseUrls($"http://0.0.0.0:{hostPort}");
+
 // ---------- Logging: Serilog writes structured JSON-friendly logs to the console ----------
 builder.Host.UseSerilog((context, logger) => logger
     .ReadFrom.Configuration(context.Configuration)
