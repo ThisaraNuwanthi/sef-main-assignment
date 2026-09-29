@@ -311,3 +311,41 @@ a release build cannot make any network calls. Plain `http` is allowed only in t
 Inside the Android emulator, `localhost` is the emulator itself. `10.0.2.2` is the emulator's alias
 for the host computer, where the API runs. The URL is passed at build time with
 `--dart-define=API_BASE_URL=...` and read with `String.fromEnvironment` (`lib/config.dart`).
+
+---
+
+## Phase 5 — Deployment, performance, documentation
+
+### 48. How is the system deployed, and what happens on a `git push`?
+GitHub Actions CI runs all three test suites. Railway rebuilds `backend/Dockerfile` (root directory `backend`,
+`railway.json` sets the health check) and redeploys the API; Vercel rebuilds `web/`. On startup the API applies EF
+migrations and seeds an empty database, so no manual migration step. Secrets are Railway environment variables
+(`ConnectionStrings__Default`, `Jwt__Key`, `GEMINI_API_KEY`…) — never in git. See ADR 0005.
+
+### 49. Why Railway and not Render (which the plan first used)?
+Render's free web service still needed card verification and the card was refused; Hugging Face Docker Spaces
+turned out to be paid. Railway deploys from GitHub with our existing Dockerfile and no card on the trial. Because
+the app is a standard container configured only by environment variables, switching host needed **no code
+change** except honouring the host's `$PORT`. Trade-off: trial credit runs out; photos on the container disk
+are lost on redeploy (would move to object storage behind `IPhotoStorage`).
+
+### 50. Why does a multi-stage Dockerfile matter?
+The first stage uses the big .NET SDK image to restore and publish; the final image only contains the ASP.NET
+runtime and the published DLLs (~366 MB instead of >1 GB), has no compilers, and runs as the non-root `app`
+user. Restoring the `.csproj` before copying the source lets Docker cache the package download layer.
+
+### 51. What did the performance test show and what is the bottleneck?
+k6, 30 virtual users (`perf/README.md`): `GET /api/classes` p95 24 ms with 0 % errors; 10 simultaneous enrolments
+all reached `PendingAdminApproval`, agent latency p95 1.4 s with the fake model. The bottleneck is by design: one
+background worker processes workflows sequentially, and with Gemini each takes ~10 s. That protects the free-tier
+rate limit; scaling would mean several `Channel` readers.
+
+### 52. Why test performance locally with the fake LLM instead of the live system?
+Repeatable numbers (no network/LLM variance), no cost, no Gemini quota burned, and no test accounts left in the
+production database. The live system was checked separately with a real Gemini workflow (≈ 9.6 s end to end).
+
+### 53. How do you keep secrets out of a public repository?
+`appsettings.json` has empty values; local secrets live in `dotnet user-secrets` (outside the repo); production
+secrets are platform environment variables; `.gitignore` excludes `.env*`, `appsettings.Development.json`,
+keystores. Before making the repo public the whole history was scanned for key patterns. Only placeholder
+templates (`.env.example`, `appsettings.Development.example.json`) are committed.

@@ -30,7 +30,7 @@ flutter test
 ## Release APK
 
 ```bash
-flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-API.onrender.com
+flutter build apk --release --dart-define=API_BASE_URL=https://sef-main-assignment-production.up.railway.app
 # -> build/app/outputs/flutter-apk/app-release.apk
 ```
 
