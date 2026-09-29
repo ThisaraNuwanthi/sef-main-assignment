@@ -82,3 +82,8 @@ public class ClassQuery
 }
 
 public record CoachOptionDto(int Id, string FullName, string Email);
+
+public record RosterStudentDto(int ChildId, string ChildName, int Age, string? LichessUsername, string ParentName, DateTime PlacedAt);
+
+/// <summary>A coach's class with the students currently placed in it.</summary>
+public record CoachClassDto(ClassDto Class, List<RosterStudentDto> Students);

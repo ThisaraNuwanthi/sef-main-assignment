@@ -6,7 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using SkcaEnrol.Api.Agents;
+using SkcaEnrol.Api.Agents.Llm;
+using SkcaEnrol.Api.Agents.Orchestration;
+using SkcaEnrol.Api.Agents.Tools;
 using SkcaEnrol.Api.Auth;
+using SkcaEnrol.Api.Integrations;
 using SkcaEnrol.Api.Common;
 using SkcaEnrol.Api.Data;
 using SkcaEnrol.Api.Services;
@@ -64,6 +69,56 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
+builder.Services.AddScoped<IFeeService, FeeService>();
+builder.Services.AddScoped<IEnrolmentService, EnrolmentService>();
+builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
+// ---------- Agentic AI subsystem ----------
+builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.Section));
+builder.Services.Configure<LlmOptions>(builder.Configuration.GetSection(LlmOptions.Section));
+
+// The 4 agents and the orchestrator (one per workflow run, via a DI scope).
+builder.Services.AddScoped<PlannerAgent>();
+builder.Services.AddScoped<SkillAssessmentAgent>();
+builder.Services.AddScoped<PlacementAgent>();
+builder.Services.AddScoped<ValidationSafetyAgent>();
+builder.Services.AddScoped<WorkflowOrchestrator>();
+
+// Tools. Agents cannot reach these directly: only through ToolGateway, which applies each agent's allow-list.
+builder.Services.AddScoped<IAgentTool, LichessProfileTool>();
+builder.Services.AddScoped<IAgentTool, ClassSearchTool>();
+builder.Services.AddScoped<IAgentTool, FeeCalculatorTool>();
+
+// Typed HttpClient for Lichess: 10s timeout; retries are handled inside LichessClient.
+builder.Services.AddHttpClient<ILichessClient, LichessClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Lichess:BaseUrl"] ?? "https://lichess.org/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("SkcaEnrol/1.0 (student project)");
+});
+
+// LLM provider chosen by config: "Gemini" for real runs, "Fake" for tests and offline demos.
+var llm = builder.Configuration.GetSection(LlmOptions.Section).Get<LlmOptions>() ?? new LlmOptions();
+if (llm.Provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<ILlmClient, GeminiLlmClient>(client =>
+    {
+        client.BaseAddress = new Uri(llm.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+}
+else
+{
+    builder.Services.AddSingleton<FakeLlmClient>();
+    builder.Services.AddSingleton<ILlmClient>(sp => sp.GetRequiredService<FakeLlmClient>());
+}
+
+// Background runner: POST /api/enrolments only queues the workflow id and returns.
+builder.Services.AddSingleton<WorkflowQueue>();
+if (builder.Configuration.GetValue("Agents:RunInBackground", true))
+    builder.Services.AddHostedService<WorkflowWorker>();
 
 // ---------- Errors: every failure becomes a ProblemDetails JSON body ----------
 builder.Services.AddProblemDetails();

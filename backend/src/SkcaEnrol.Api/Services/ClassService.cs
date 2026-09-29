@@ -15,6 +15,7 @@ public interface IClassService
     Task<ClassDto> UpdateAsync(int id, SaveClassRequest request, CancellationToken ct = default);
     Task DeleteAsync(int id, CancellationToken ct = default);
     Task<List<CoachOptionDto>> ListCoachesAsync(CancellationToken ct = default);
+    Task<List<CoachClassDto>> ListForCoachAsync(int coachId, CancellationToken ct = default);
 }
 
 public class ClassService(AppDbContext db) : IClassService
@@ -116,6 +117,36 @@ public class ClassService(AppDbContext db) : IClassService
             .OrderBy(u => u.FullName)
             .Select(u => new CoachOptionDto(u.Id, u.FullName, u.Email))
             .ToListAsync(ct);
+
+    /// <summary>Read-only view for a coach: only their own active classes, with approved students.</summary>
+    public async Task<List<CoachClassDto>> ListForCoachAsync(int coachId, CancellationToken ct = default)
+    {
+        var classes = await db.Classes.AsNoTracking()
+            .Where(c => c.CoachId == coachId && c.IsActive)
+            .OrderBy(c => c.DayOfWeek).ThenBy(c => c.StartTime)
+            .Select(ToDto)
+            .ToListAsync(ct);
+
+        var classIds = classes.Select(c => c.Id).ToList();
+        var placements = await db.Enrolments.AsNoTracking()
+            .Where(e => e.Status == EnrolmentStatus.Approved && e.AssignedClassId != null && classIds.Contains(e.AssignedClassId.Value))
+            .Select(e => new
+            {
+                ClassId = e.AssignedClassId!.Value,
+                e.ChildId, e.Child!.FullName, e.Child.DateOfBirth, e.Child.LichessUsername,
+                ParentName = e.Child.Parent!.FullName, e.UpdatedAt
+            })
+            .ToListAsync(ct);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return classes.Select(c => new CoachClassDto(c, placements
+            .Where(p => p.ClassId == c.Id)
+            .OrderBy(p => p.FullName)
+            .Select(p => new RosterStudentDto(p.ChildId, p.FullName,
+                new Child { DateOfBirth = p.DateOfBirth }.AgeOn(today), // reuse the one age rule
+                p.LichessUsername, p.ParentName, p.UpdatedAt))
+            .ToList())).ToList();
+    }
 
     /// <summary>Business checks that need the database (DTO attributes cover the rest).</summary>
     private async Task EnsureValidAsync(SaveClassRequest r, int? existingId, CancellationToken ct)

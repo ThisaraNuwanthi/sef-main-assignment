@@ -51,6 +51,12 @@ public class ClassesController(IClassService classes) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Coach view: my classes and their rosters (read-only).</summary>
+    [HttpGet("mine")]
+    [Authorize(Roles = Roles.Coach)]
+    public async Task<ActionResult<List<CoachClassDto>>> Mine(CancellationToken ct) =>
+        Ok(await classes.ListForCoachAsync(User.GetUserId(), ct));
+
     /// <summary>Coach list for the Admin class form's dropdown.</summary>
     [HttpGet("coaches")]
     [Authorize(Roles = Roles.Admin)]
