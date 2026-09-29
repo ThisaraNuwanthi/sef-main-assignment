@@ -1,0 +1,58 @@
+# ---------- Secrets / local config (never commit) ----------
+.env
+.env.*
+!.env.example
+**/appsettings.Development.json
+**/appsettings.Local.json
+*.pem
+*.key
+*.jks
+*.keystore
+**/android/key.properties
+
+# ---------- OS / editors ----------
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# ---------- .NET ----------
+**/bin/
+**/obj/
+*.user
+*.suo
+TestResults/
+coverage*/
+backend/src/SkcaEnrol.Api/uploads/
+
+# ---------- Node / React ----------
+node_modules/
+web/dist/
+web/coverage/
+npm-debug.log*
+*.tsbuildinfo
+.vercel
+.netlify
+
+# ---------- Flutter / Dart ----------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+mobile/build/
+mobile/**/GeneratedPluginRegistrant.*
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/debug/
+mobile/android/app/profile/
+mobile/android/app/release/
+mobile/ios/Pods/
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+
+# ---------- Perf test output ----------
+perf/results/

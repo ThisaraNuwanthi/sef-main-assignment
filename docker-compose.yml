@@ -1,0 +1,23 @@
+# Local development database only (production uses Neon).
+# Start:  docker compose up -d db
+# Port 5433 on the host so it never clashes with a Postgres already installed on 5432.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: skca-enrol-db
+    environment:
+      POSTGRES_DB: skca_enrol
+      POSTGRES_USER: skca
+      # Local throw-away container password. Override with POSTGRES_PASSWORD in your shell if you like.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skca_dev_pw}
+    ports:
+      - "5433:5432"
+    volumes:
+      - skca_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skca -d skca_enrol"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  skca_pgdata:

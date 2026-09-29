@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{CF0A58EF-22CC-4FE6-BE60-4358260B1E8C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkcaEnrol.Api", "src\SkcaEnrol.Api\SkcaEnrol.Api.csproj", "{F5201686-41D9-4901-B387-4D588A894C97}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{8C37C3EE-4DFF-466E-AFCA-A0A136DF89CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkcaEnrol.Tests", "tests\SkcaEnrol.Tests\SkcaEnrol.Tests.csproj", "{11199113-2D04-498A-BC8B-9F8C5CBD6C6D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F5201686-41D9-4901-B387-4D588A894C97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F5201686-41D9-4901-B387-4D588A894C97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F5201686-41D9-4901-B387-4D588A894C97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F5201686-41D9-4901-B387-4D588A894C97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11199113-2D04-498A-BC8B-9F8C5CBD6C6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11199113-2D04-498A-BC8B-9F8C5CBD6C6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11199113-2D04-498A-BC8B-9F8C5CBD6C6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11199113-2D04-498A-BC8B-9F8C5CBD6C6D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F5201686-41D9-4901-B387-4D588A894C97} = {CF0A58EF-22CC-4FE6-BE60-4358260B1E8C}
+		{11199113-2D04-498A-BC8B-9F8C5CBD6C6D} = {8C37C3EE-4DFF-466E-AFCA-A0A136DF89CA}
+	EndGlobalSection
+EndGlobal
