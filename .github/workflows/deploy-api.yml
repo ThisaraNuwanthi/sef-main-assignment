@@ -1,0 +1,55 @@
+name: Deploy API
+
+# Continuous deployment of the ASP.NET Core API to a Hugging Face Docker Space
+# (free, no card). Runs when backend code changes on main, or by hand.
+# Needs: repository secret HF_TOKEN (Hugging Face write token) and
+#        repository variable HF_SPACE (e.g. ThisaraNuwanthi/skca-enrol-api).
+# Runtime secrets (DB connection, JWT key, Gemini key) live in the Space settings, not here.
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/deploy-api.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: vars.HF_SPACE != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the Space (Dockerfile + API source + Space config)
+        run: |
+          mkdir space
+          cp backend/Dockerfile backend/.dockerignore space/
+          cp -r backend/src space/src
+          # Hugging Face reads this front matter: build the Dockerfile, route traffic to port 8080.
+          cat > space/README.md <<'EOF'
+          ---
+          title: SKCA Enrol API
+          emoji: ♞
+          colorFrom: green
+          colorTo: gray
+          sdk: docker
+          app_port: 8080
+          pinned: false
+          ---
+
+          ASP.NET Core Web API for SKCA Enrol. Deployed automatically from GitHub.
+          Swagger UI: `/swagger` · Health: `/health`
+          EOF
+
+      - name: Push to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          cd space
+          git init -q -b main
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA::7} from GitHub"
+          # The Space only ever mirrors main, so a force push is safe here.
+          git push --force "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" main
