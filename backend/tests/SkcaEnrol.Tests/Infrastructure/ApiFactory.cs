@@ -2,9 +2,14 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using SkcaEnrol.Api.Agents.Llm;
+using SkcaEnrol.Api.Agents.Orchestration;
 using SkcaEnrol.Api.Data;
+using SkcaEnrol.Api.Integrations;
 using SkcaEnrol.Api.Domain;
 using SkcaEnrol.Api.Dtos;
 using Testcontainers.PostgreSql;
@@ -58,6 +63,32 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Jwt:Key", "integration-test-signing-key-at-least-32-chars");
         builder.UseSetting("Seed:Enabled", "false");
         builder.UseSetting("Storage:UploadsPath", Path.Combine(Path.GetTempPath(), "skca-test-uploads"));
+
+        // Agents: offline fake LLM, and no background worker. Tests run a workflow
+        // themselves with RunWorkflowAsync, so results are deterministic.
+        builder.UseSetting("Llm:Provider", "Fake");
+        builder.UseSetting("Agents:RunInBackground", "false");
+        builder.UseSetting("Agents:StepTimeoutSeconds", "10");
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ILichessClient>();
+            services.AddSingleton(Lichess);
+            services.AddSingleton<ILichessClient>(Lichess);
+        });
+    }
+
+    /// <summary>Fake Lichess shared by the app and the test (tests flip Fail / Rating).</summary>
+    public FakeLichessClient Lichess { get; } = new();
+
+    /// <summary>The app's fake LLM, so tests can force answers through Overrides.</summary>
+    public FakeLlmClient Llm => Services.GetRequiredService<FakeLlmClient>();
+
+    /// <summary>Runs the agent workflow now, in a fresh scope, like the background worker would.</summary>
+    public async Task RunWorkflowAsync(int workflowId)
+    {
+        using var scope = Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkflowOrchestrator>().RunAsync(workflowId);
     }
 
     async Task IAsyncLifetime.DisposeAsync()

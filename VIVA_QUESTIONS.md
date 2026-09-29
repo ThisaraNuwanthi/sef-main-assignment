@@ -92,3 +92,109 @@ DbContext is not thread-safe and should not live longer than one request.
 Multiple `[Authorize]` attributes are combined with AND. That's why
 `ChildrenController` has plain `[Authorize]` on the class and the roles on each
 action.
+
+---
+
+## Phase 2 — Enrolment component and Agentic AI
+
+### 15. Walk through what happens after a parent taps "Submit" (POST /api/enrolments).
+1. `EnrolmentsController.Create` → `EnrolmentService.CreateAsync` checks ownership (the child's
+   ParentId must equal the token's user id), that the child has no other open request, and that the
+   requested class is active.
+2. It saves the Enrolment (Submitted), its first history row, and an `AgentWorkflow` (Queued) in one `SaveChanges`.
+3. It puts the workflow id on `WorkflowQueue` (a `Channel<int>`) and returns **201** with `enrolmentId` + `workflowId` straight away.
+4. `WorkflowWorker` (a `BackgroundService`) reads the id, creates a DI scope and calls `WorkflowOrchestrator.RunAsync`.
+
+### 16. What are the 4 agents, and what makes them "distinct"?
+Each has its own class, its own typed input/output records (`Agents/AgentContracts.cs`), its own
+`AllowedTools` set, and its own `AgentStep` rows.
+| Agent | Uses LLM? | Tools | Output |
+|---|---|---|---|
+| PlannerAgent | yes | none | plan (list of allowed steps) |
+| SkillAssessmentAgent | yes (only when Lichess data exists) | LichessProfile | level, confidence, rationale |
+| PlacementAgent | yes | ClassSearch, FeeCalculator | chosen class, reason, fee |
+| ValidationSafetyAgent | **no**, deterministic | none (read-only DB) | rule results |
+
+### 17. How is "least privilege" enforced for tools?
+Agents never receive tool objects. They only get a `ToolGateway` (`Agents/Tools/ToolGateway.cs`)
+created by the orchestrator with that agent's allow-list. `CallAsync` checks the list first; a
+forbidden call is recorded as a failed `ToolCall` ("Denied…") and throws `AgentToolNotAllowedException`,
+which is **not retried** and fails the workflow. Test: `ToolGatewayTests`.
+
+### 18. The LLM answers `{"classId": 999999}`. What happens?
+`PlacementAgent.ProposeAsync` looks the id up in the candidate list the ClassSearch tool returned.
+It isn't there, so it throws `AgentOutputException`. The orchestrator retries the step (max 2 retries,
+3 attempts total). Still wrong → step Failed, workflow Failed with the reason, enrolment Failed.
+Nothing is booked. An admin can later `POST /api/workflows/{id}/retry`, which creates a **new** workflow.
+Golden test: `Invalid_class_id_from_the_LLM_is_rejected_retried_and_fails_safely`.
+
+### 19. How do you defend against prompt injection in parent notes?
+Three layers:
+1. **Separation**: notes are never put in the objective or instructions. `AgentPrompt.WithData` puts
+   them inside a `<data>…</data>` block, JSON-encoded (`<` becomes `<`, so the note can't close
+   the tag), with an instruction that data is not instructions.
+2. **Constrained output**: even if the model were fooled, it can only return a class id from the
+   candidate list, the fee comes from deterministic code, and nothing is approved automatically.
+3. **Detection**: `PromptInjectionDetector` (regex) flags phrases like "ignore previous instructions" or
+   "approve automatically" as a **Warning** that the admin sees on the review page.
+
+### 20. Why is the ValidationSafetyAgent deterministic (no LLM)?
+It is the safety net that checks the LLM agents' work. If it were an LLM it could be fooled or be
+wrong in the same way. Its rules are pure functions (`ValidationRules`) that are unit-tested:
+schema checks, candidate membership, class active, capacity, time clash, level fit (±1 only with a
+reason), fee recomputation match, and prompt injection.
+
+### 21. Explain the approval transaction. Why `FOR UPDATE`?
+`WorkflowService.ApproveAsync` opens a transaction, then:
+lock the class row (`SELECT … FOR UPDATE`) → re-check active, capacity and time clash → recompute the fee →
+set `AssignedClassId` and status Approved (+ history) → add FeeRecord → add ApprovalDecision →
+`SaveChanges` → `Commit`. Any `ConflictException` (e.g. full → **409**) leaves before `Commit`,
+so the transaction is rolled back and nothing is saved.
+`FOR UPDATE` makes a second approval for the same class **wait** until the first commits, so it
+then sees the updated seat count. Without the lock, two admins could both see "1 seat left".
+Golden test: `Capacity_exceeded_at_approval_returns_409_and_rolls_back`.
+
+### 22. What is the `Version`/`xmin` property on Enrolment?
+Optimistic concurrency. PostgreSQL changes a row's hidden `xmin` on every update. EF includes it in
+the `WHERE` of each UPDATE; if someone else changed the row in between, 0 rows match and EF throws
+`DbUpdateConcurrencyException`, which the global handler returns as 409.
+
+### 23. Where is the fee rule, and who uses it?
+Only in `Services/FeeService.cs` (`FeeCalculator.Calculate`): class fee, minus 10% if another child of
+the same parent already has an approved place, rounded to 2 decimals. Used by the FeeCalculator tool
+(PlacementAgent), the ValidationSafetyAgent (to recompute and compare) and the approval transaction.
+The LLM never calculates money.
+
+### 24. What happens if Lichess is down or rate-limits you?
+`LichessClient` (typed HttpClient, 10s timeout) retries 5xx/timeouts up to 2 times; a 429 is not
+retried (Lichess asks you to wait a minute); 404 returns "not found"; bad JSON becomes a
+`ToolFailedException`. `SkillAssessmentAgent` catches the tool failure and falls back to the
+age-based default with **Low** confidence. The failed call is still recorded. Golden test:
+`Lichess_failure_falls_back_to_age_default_and_is_recorded`.
+
+### 25. Why can't the plan skip the Validate step?
+`PlanValidator.EnsureValid` requires the plan to be exactly the allowed steps in dependency order
+(each step needs the previous one's output). Unknown steps, repeats or missing steps →
+`AgentOutputException` → retried → fails safely. The LLM cannot remove the safety checks or the
+human approval.
+
+### 26. How do you test the agents without calling Gemini?
+`ILlmClient` has two implementations chosen by `Llm:Provider`: `GeminiLlmClient` (JSON mode, key from
+`GEMINI_API_KEY` sent in a header) and `FakeLlmClient` (fixed-shape answers, no network). Tests use
+the fake plus `FakeLichessClient`, and can force bad answers through `FakeLlmClient.Overrides`.
+The 6 golden cases run the real orchestrator against real PostgreSQL.
+
+### 27. What is stored for each workflow, and what is deliberately NOT stored?
+Stored: objective, plan, every step's input/output JSON (jsonb), status, duration, retries, errors,
+every tool call with timing, validation results, and the admin decision.
+Not stored: hidden chain-of-thought (we only ask for a short rationale), passwords, tokens or API keys.
+
+### 28. What happens if the server restarts while a workflow is running?
+`WorkflowWorker.RecoverAfterRestartAsync`: workflows still `Queued` are put back on the queue;
+workflows that were `Running` are marked Failed ("Interrupted by a server restart") so they don't hang
+forever, and an admin can retry them. The database, not the in-memory channel, is the source of truth.
+
+### 29. Which status changes are allowed?
+Only those in `EnrolmentStateMachine.Allowed`, e.g. Submitted → AgentProcessing → PendingAdminApproval →
+Approved/Rejected/RevisionRequested; RevisionRequested → Submitted (parent edits); Failed → Submitted
+(admin retry). Rejected and Cancelled are final. Every move writes an `EnrolmentStatusHistory` row.
