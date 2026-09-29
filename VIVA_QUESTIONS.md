@@ -211,3 +211,54 @@ Found in manual testing: before the search filter existed, Sithmi (already in Pa
 proposed Pawn Stars again. The validation agent caught it and the workflow failed safely, which
 proved the safety net worked, but the proposal was useless. Test:
 `Class_search_skips_classes_that_clash_with_the_childs_existing_class`.
+
+---
+
+## Phase 3 — React admin and coach web app
+
+### 31. Why React Context for auth but TanStack Query for data? (ADR 0001)
+They are different kinds of state.
+- **Who is logged in** is small client state that rarely changes and is needed everywhere → a
+  Context (`AuthContext.tsx`) is enough; Redux/Zustand would add a library for one value.
+- **Classes, enrolments, workflows** are *server* state: they live in the API, can be stale, need
+  loading/error states, caching, refetching and polling. TanStack Query does all of that, so pages
+  don't need hand-written `useEffect` + `useState` fetching code.
+
+### 32. How does the Workflow Review page update while the agents are running?
+`useQuery` has `refetchInterval: (query) => status is Queued/Running ? 2000 : false` — it polls
+every 2 s and stops by itself once the workflow finishes.
+
+### 33. How does a protected route work? Is it security?
+`ProtectedRoute` (`src/auth/ProtectedRoute.tsx`) redirects to `/login` if nobody is logged in, and
+to `/forbidden` if the role is wrong. It is **only UX**: anyone can edit browser code, so the API
+checks the JWT and role on every request anyway. Tests: `ProtectedRoute.test.tsx`.
+
+### 34. What happens when the token expires?
+`authStorage.loadSession` treats an expired token as logged out. If the API still answers 401,
+`api()` in `client.ts` clears the session and fires a `skca:unauthorized` event; `AuthContext`
+listens and sets the user to null, so routes redirect to login.
+
+### 35. Where is the JWT stored, and what is the risk?
+localStorage, so a refresh keeps you logged in. Risk: any JavaScript running on the page (XSS)
+could read it. Mitigations: React escapes all text (parent notes are shown as text, never HTML),
+no `dangerouslySetInnerHTML`, short token lifetime. An httpOnly cookie would be safer but needs
+CSRF protection and same-site hosting — more complexity than this project needs.
+
+### 36. How are API errors shown to the user?
+`client.ts` turns every non-2xx response into an `ApiError` using the ProblemDetails `detail` (and
+validation `errors`). `ErrorAlert` shows it with `role="alert"`. Example: approving a full class
+shows "'Pawn Stars' is full (3/3)…" — tested in `WorkflowReviewPage.test.tsx`.
+
+### 37. Why validate forms on the client if the server validates anyway?
+Instant feedback without a network round trip. The server rules are the real ones; the client
+copy (`utils/validation.ts`) is a convenience and never trusted by the API.
+
+### 38. What accessibility features did you add?
+Every input has a `<label>`; invalid fields get `aria-invalid` and `aria-describedby` pointing to the
+error text; alerts use `role="alert"` / `role="status"`; tables have captions and `scope`;
+a skip link; visible focus outlines; the chart has an `aria-label` summary; reduced-motion respected.
+
+### 39. Why can't parents log in to the website?
+The spec splits the roles by client: parents use the Flutter app, staff use the web app.
+`AuthContext.login` refuses Parent accounts with a clear message (the API itself would allow the
+login; it's the web app that decides it's the wrong client).
