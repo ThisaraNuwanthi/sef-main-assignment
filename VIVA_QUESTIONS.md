@@ -262,3 +262,52 @@ a skip link; visible focus outlines; the chart has an `aria-label` summary; redu
 The spec splits the roles by client: parents use the Flutter app, staff use the web app.
 `AuthContext.login` refuses Parent accounts with a clear message (the API itself would allow the
 login; it's the web app that decides it's the wrong client).
+
+---
+
+## Phase 4 — Flutter parent app
+
+### 40. Why Provider (and not Riverpod)? (ADR 0002)
+The app has three pieces of shared state (`AuthState`, `ChildrenState`, `EnrolmentsState`), each a
+`ChangeNotifier`. Provider is the simplest option that the Flutter team documents: `context.watch<T>()`
+rebuilds a widget when `notifyListeners()` is called, `context.read<T>()` calls methods without
+listening. Riverpod adds compile-time safety and no BuildContext dependency, but brings more concepts
+(providers of providers, `ref`, code generation) than a three-notifier app needs.
+
+### 41. How are the screens protected?
+`router.dart`: go_router's `redirect` runs before every navigation and whenever `AuthState` notifies
+(`refreshListenable: auth`). Not logged in → `/login`; logged in on `/login` → `/enrolments`; still
+reading the saved session → `/splash`. The API enforces the real security (JWT + ownership checks).
+
+### 42. Where is the JWT stored on the phone, and why there?
+`flutter_secure_storage` (`state/token_storage.dart`), which encrypts it with a key held in the
+Android Keystore. SharedPreferences would store it as plain text readable from a rooted device or a
+backup. On startup `AuthState.restore()` reads it and ignores it if expired.
+
+### 43. How does the photo upload work end to end?
+`image_picker` picks from camera/gallery with `maxWidth: 1024, imageQuality: 80` so the file is small →
+`ApiClient.uploadFile` sends `multipart/form-data` with field `photo` and an `image/jpeg|png` content type
+→ `POST /api/children/{id}/photo`, where the API checks size (≤2 MB), content type and the file's magic
+bytes, then stores it with a server-generated name. Photos are displayed with `NetworkImage(url, headers:
+{Authorization: ...})` because the photo endpoint checks ownership too.
+
+### 44. How does the detail screen track status while the agents run?
+`EnrolmentDetailScreen` polls every 3 s with `Timer.periodic` while the status is `Submitted` or
+`AgentProcessing`, and cancels the timer when it moves on (and in `dispose()` so it never leaks).
+Pull-to-refresh also reloads.
+
+### 45. How do you test widgets that call the API?
+`ApiClient` takes an `http.Client` in its constructor (dependency injection). Tests pass
+`MockClient` from `package:http/testing.dart`, which returns canned responses and records requests, so
+tests can assert what was sent (e.g. the POST body in `enrolment_form_test.dart`) with no network.
+`InMemoryTokenStorage` replaces secure storage the same way.
+
+### 46. Why does the release APK need the INTERNET permission added manually?
+Flutter only adds it to the **debug** manifest (for hot reload). Without it in `src/main/AndroidManifest.xml`
+a release build cannot make any network calls. Plain `http` is allowed only in the debug manifest
+(`usesCleartextTraffic`), so the release app talks to the API over https only.
+
+### 47. What does `10.0.2.2` mean in `API_BASE_URL`?
+Inside the Android emulator, `localhost` is the emulator itself. `10.0.2.2` is the emulator's alias
+for the host computer, where the API runs. The URL is passed at build time with
+`--dart-define=API_BASE_URL=...` and read with `String.fromEnvironment` (`lib/config.dart`).

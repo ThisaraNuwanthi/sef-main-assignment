@@ -80,3 +80,21 @@ jobs:
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://example-api.invalid # build-time placeholder; real URL is set on Vercel
+
+  mobile:
+    name: Mobile (analyze + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
