@@ -85,7 +85,7 @@ public class WorkflowOrchestrator(
 
                     case PlanSteps.FindCandidateClasses:
                         candidates = await RunStepAsync(workflow, ++stepNo, step, PlacementAgent.Name, PlacementAgent.AllowedTools,
-                            new CandidateSearchInput(skill!.Level, enrolment.PreferredDays, enrolment.PreferredTimeFrom, enrolment.PreferredTimeTo),
+                            new CandidateSearchInput(child.Id, skill!.Level, enrolment.PreferredDays, enrolment.PreferredTimeFrom, enrolment.PreferredTimeTo),
                             placementAgent.FindCandidatesAsync, ct);
                         if (candidates.Candidates.Count == 0)
                             throw new WorkflowFailedException(

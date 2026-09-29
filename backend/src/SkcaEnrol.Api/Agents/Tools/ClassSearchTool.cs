@@ -6,7 +6,8 @@ namespace SkcaEnrol.Api.Agents.Tools;
 
 /// <summary>
 /// Read-only database query: active classes with free seats that match the
-/// assessed level (or one level either side), the preferred days and the time window.
+/// assessed level (or one level either side), the preferred days and the time window,
+/// and that do not clash with a class the child already attends.
 /// The PlacementAgent's LLM may only pick from what this returns.
 /// </summary>
 public class ClassSearchTool(AppDbContext db) : IAgentTool<CandidateSearchInput, CandidateSearchOutput>
@@ -43,8 +44,16 @@ public class ClassSearchTool(AppDbContext db) : IAgentTool<CandidateSearchInput,
             })
             .ToListAsync(ct);
 
+        // The child's current timetable (approved places), so we never offer a clashing class.
+        // The ValidationSafetyAgent still re-checks this later; this just avoids useless proposals.
+        var busy = await db.Enrolments.AsNoTracking()
+            .Where(e => e.ChildId == input.ChildId && e.Status == EnrolmentStatus.Approved && e.AssignedClass != null)
+            .Select(e => e.AssignedClass!)
+            .ToListAsync(ct);
+
         // Best fit first: exact level before neighbouring levels, then the emptiest class.
         var candidates = rows
+            .Where(r => !busy.Any(b => b.OverlapsWith(r.DayOfWeek, r.StartTime, r.EndTime)))
             .Select(r => new CandidateClass(r.Id, r.Name, r.Level, r.DayOfWeek, r.StartTime, r.EndTime,
                 r.SeatsLeft, r.MonthlyFee, Math.Abs((int)r.Level - level)))
             .OrderBy(c => c.LevelDistance)

@@ -198,3 +198,16 @@ forever, and an admin can retry them. The database, not the in-memory channel, i
 Only those in `EnrolmentStateMachine.Allowed`, e.g. Submitted → AgentProcessing → PendingAdminApproval →
 Approved/Rejected/RevisionRequested; RevisionRequested → Submitted (parent edits); Failed → Submitted
 (admin retry). Rejected and Cancelled are final. Every move writes an `EnrolmentStatusHistory` row.
+
+### 30. The class search AND the validation agent both check time clashes. Isn't that duplication?
+It is deliberate defence in depth, and each check has a different job:
+- **ClassSearchTool** leaves out classes that clash with the child's current timetable, so the
+  agents only propose places that can actually work (a helpful search).
+- **ValidationSafetyAgent** re-checks the final proposal against fresh data, so even a bug in the
+  search, or an LLM choosing badly, can never reach the admin as a valid proposal (a safety net).
+- **ApproveAsync** checks once more inside the transaction, because the timetable may change
+  between the proposal and the approval.
+Found in manual testing: before the search filter existed, Sithmi (already in Pawn Stars) was
+proposed Pawn Stars again. The validation agent caught it and the workflow failed safely, which
+proved the safety net worked, but the proposal was useless. Test:
+`Class_search_skips_classes_that_clash_with_the_childs_existing_class`.

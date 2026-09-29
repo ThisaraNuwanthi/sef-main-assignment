@@ -73,7 +73,7 @@ public class ToolGatewayTests
 
         await Assert.ThrowsAsync<AgentToolNotAllowedException>(() =>
             gateway.CallAsync<CandidateSearchInput, CandidateSearchOutput>(ClassSearchTool.ToolName,
-                new CandidateSearchInput(ClassLevel.Beginner, new(), null, null), CancellationToken.None));
+                new CandidateSearchInput(1, ClassLevel.Beginner, new(), null, null), CancellationToken.None));
 
         var call = Assert.Single(step.ToolCalls);
         Assert.False(call.Success);

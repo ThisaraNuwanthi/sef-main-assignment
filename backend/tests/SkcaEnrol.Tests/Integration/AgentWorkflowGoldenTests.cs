@@ -202,13 +202,44 @@ public class AgentWorkflowGoldenTests : IClassFixture<ApiFactory>
         });
     }
 
+    // ---------- Extra case: the search never offers a class that clashes with the child's timetable ----------
+    [Fact]
+    public async Task Class_search_skips_classes_that_clash_with_the_childs_existing_class()
+    {
+        // The child already attends a Beginner class on Wednesday 15:00-16:00.
+        var current = await CreateClassAsync("Golden Wednesday Current", DayOfWeek.Wednesday, level: ClassLevel.Beginner, start: 15);
+        var other = await CreateClassAsync("Golden Wednesday Later", DayOfWeek.Wednesday, level: ClassLevel.Beginner, start: 17);
+        var childId = await CreateChildAsync(_api.ParentAId, "Busy Kid", lichess: "busy_kid");
+        await _api.WithDbAsync(async db =>
+        {
+            db.Enrolments.Add(new Enrolment
+            {
+                ChildId = childId, AssignedClassId = current, Status = EnrolmentStatus.Approved,
+                PreferredDays = new() { DayOfWeek.Wednesday }
+            });
+            await db.SaveChangesAsync();
+        });
+
+        var created = await SubmitAsync("parent.a@test.lk", childId, DayOfWeek.Wednesday);
+        await _api.RunWorkflowAsync(created.WorkflowId);
+
+        var wf = await GetWorkflowAsync(created.WorkflowId);
+        var search = wf.Steps.Single(s => s.StepName == PlanSteps.FindCandidateClasses);
+        var ids = search.Output!.Value.GetProperty("candidates").EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
+        Assert.DoesNotContain(current, ids);
+        Assert.Contains(other, ids);
+
+        Assert.Equal(WorkflowStatus.AwaitingApproval, wf.Status);
+        Assert.NotEqual(current, wf.Proposal!.Value.GetProperty("classId").GetInt32());
+    }
+
     // ---------- helpers ----------
 
-    private async Task<int> CreateClassAsync(string name, DayOfWeek day, int capacity = 8, ClassLevel level = ClassLevel.Beginner)
+    private async Task<int> CreateClassAsync(string name, DayOfWeek day, int capacity = 8, ClassLevel level = ClassLevel.Beginner, int start = 15)
     {
         var klass = new ChessClass
         {
-            Name = name, Level = level, DayOfWeek = day, StartTime = new TimeOnly(15, 0), EndTime = new TimeOnly(16, 0),
+            Name = name, Level = level, DayOfWeek = day, StartTime = new TimeOnly(start, 0), EndTime = new TimeOnly(start + 1, 0),
             Capacity = capacity, MonthlyFee = 3000m, CoachId = _api.CoachId
         };
         await _api.WithDbAsync(async db => { db.Classes.Add(klass); await db.SaveChangesAsync(); });

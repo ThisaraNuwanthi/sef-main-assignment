@@ -35,7 +35,8 @@ public record SkillInput(string ChildName, int Age, string? LichessUsername);
 public record SkillOutput(ClassLevel Level, string Confidence, string Rationale, string Source, int? Rating);
 
 // ---------- 3. PlacementAgent (two plan steps) ----------
-public record CandidateSearchInput(ClassLevel AssessedLevel, List<DayOfWeek> PreferredDays, TimeOnly? From, TimeOnly? To);
+/// <param name="ChildId">Used to leave out classes that clash with the child's existing timetable.</param>
+public record CandidateSearchInput(int ChildId, ClassLevel AssessedLevel, List<DayOfWeek> PreferredDays, TimeOnly? From, TimeOnly? To);
 
 public record CandidateClass(
     int Id, string Name, ClassLevel Level, DayOfWeek DayOfWeek, TimeOnly StartTime, TimeOnly EndTime,
