@@ -237,7 +237,39 @@ Why these platforms (and why not Render / Hugging Face): [ADR 0005](docs/adr/000
 - Known limitations: the web app stores the JWT in `localStorage` (XSS risk, see ADR 0001); uploaded photos are not
   persistent on the free host (ADR 0005); no refresh tokens or rate limiting.
 
-## 14. AI usage declaration
+## 14. Individual contribution
+
+This is a **single-member group** (repeat student). Under Section 3 of the specification an approved group-size
+variation must have one primary component per student, so the project has **one primary business component**:
+**Enrolment & Class Placement**, owned end to end by Thisara Nuwanthi (IT22566102).
+<!-- Add the reference/date of the lecturer-in-charge's written approval for working alone. -->
+
+| Layer | Owned work |
+|---|---|
+| ASP.NET Core | Auth, Classes, Children, Enrolments, Workflows, Reports controllers/services; fee service; enrolment state machine; approval transaction |
+| PostgreSQL | 11-table schema, constraints, indexes, 2 migrations, seed data, `xmin` concurrency |
+| React | Admin dashboard, classes CRUD, enrolments list, workflow review/approval, coach roster |
+| Flutter | Parent registration/login, children with photo upload, enrolment form, request tracking with timeline |
+| Agentic AI | All 4 agents, 3 tools, orchestrator, background worker, Gemini + fake LLM clients |
+| Testing / CI | 70 backend, 11 web, 12 Flutter tests; k6 performance test; GitHub Actions CI for all three parts |
+| Deployment | Docker image, Railway, Neon, Vercel, release APK |
+
+Detailed evidence (key commits, pull requests, tests) is in the Individual Report section of the consolidated report.
+
+## 15. Challenges and how they were solved
+
+| Challenge | Solution |
+|---|---|
+| **No card-free hosting for the API**: Render's free plan needed card verification (card refused) and Hugging Face Docker Spaces became paid | Deployed the same Docker image to Railway from GitHub; honoured the host's `$PORT`; decision recorded in ADR 0005 |
+| **Production crash on startup**: the connection-string variable's value contained its own name, so Npgsql rejected `connectionstrings__default` | Read the Railway deploy logs, fixed the variable value; startup now fails fast with a clear message when configuration is wrong |
+| **Agent proposed a class the child already attends** (found in manual testing with Sithmi) — the ValidationSafetyAgent caught the time clash and the workflow failed safely, but the proposal was useless | ClassSearchTool now excludes classes that clash with the child's timetable; validation and the approval transaction still re-check it (defence in depth); regression test added |
+| **Race for the last seat** when two proposals target the same class | Approval runs in one transaction with `SELECT … FOR UPDATE` on the class row and re-checks capacity; golden test proves the second approval gets 409 and rolls back |
+| **Prompt injection through parent notes** | Notes passed as JSON-encoded data, never instructions; LLM limited to search results; deterministic fee; detector flags instruction-like text; human approval |
+| **Testing without calling Gemini or Lichess** | `ILlmClient` / `ILichessClient` interfaces with fake implementations chosen by configuration; golden tests run against real PostgreSQL |
+| **Development environment limits** (low disk space, unstable network during large Android SDK/NDK downloads) | Cleaned regenerable caches; resumable downloads for the NDK; kept Docker/Testcontainers for real-database tests |
+| **Late start and Git process** — the project was built in a short, intensive period, so early history is on `main` only | From the point the gap was noticed, all remaining work uses issues, a project board, feature branches and pull requests with required CI checks on a protected `main` |
+
+## 16. AI usage declaration
 
 <!-- Complete this section honestly before submission. Keep the detailed log in docs/ai-usage-log.md. -->
 
@@ -247,7 +279,7 @@ See [docs/ai-usage-log.md](docs/ai-usage-log.md).
 
 Note: the *product itself* uses AI at runtime (Google Gemini via the agent workflow), described in section 6.
 
-## 15. More documents
+## 17. More documents
 
 - [docs/requirements-checklist.md](docs/requirements-checklist.md) — every requirement mapped to where it is implemented
 - [docs/adr/](docs/adr) — architecture decision records 0001–0005
