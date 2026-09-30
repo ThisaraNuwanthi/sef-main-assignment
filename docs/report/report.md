@@ -1,0 +1,564 @@
+---
+title: "SE3090 Assignment 1 — SKCA Enrol"
+subtitle: "Chess Academy Enrolment & Class Placement — Integrated Full-Stack and Agentic AI Application"
+author: "Thisara Nuwanthi (IT22566102) — single-member group"
+date: "30 September 2026"
+---
+
+<!--
+  This file is the source of the consolidated report. Build the Word file with:
+      python3 docs/report/build.py
+  then open docs/report/build/SE3090_report.docx, add the screenshots marked [SCREENSHOT],
+  complete the parts marked [STUDENT], and export to PDF.
+  Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
+-->
+
+# Submission details
+
+| Item | Value |
+|---|---|
+| Module | SE3090 Software Engineering Frameworks — Assignment 1 |
+| Group | [STUDENT: group number, e.g. SE3090_Gxx] — single-member group (repeat student) |
+| Student | Thisara Nuwanthi — IT22566102 |
+| Group-size approval | [STUDENT: reference/date of the lecturer-in-charge's written approval] |
+| Repository | https://github.com/ThisaraNuwanthi/sef-main-assignment |
+| React web app | https://web-taupe-two-2l4c58eqb5.vercel.app |
+| API health | https://sef-main-assignment-production.up.railway.app/health |
+| Swagger UI | https://sef-main-assignment-production.up.railway.app/swagger |
+| Database | Neon PostgreSQL 16 (Singapore region) — evidence in section 10.5 |
+| Android APK | `SE3090_[group]_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
+| Demonstration video | [STUDENT: link, shared as "anyone with the link can view"] |
+
+**Test accounts** (password for all: `Demo@12345`)
+
+| Role | Email | Client |
+|---|---|---|
+| Admin | `admin@skca.lk` | React web app |
+| Coach | `coach.nimal@skca.lk`, `coach.sanduni@skca.lk` | React web app |
+| Parent | `parent.kumari@skca.lk` (two children, one already placed → sibling discount) | Flutter app |
+| Parent | `parent.ruwan@skca.lk`, `parent.dilani@skca.lk` | Flutter app |
+
+**Agentic AI access.** The deployed API uses Google Gemini (`gemini-2.5-flash`, JSON mode). The key is held only in the
+Railway environment variable `GEMINI_API_KEY`; evaluators need no key. To run locally without a key, keep
+`Llm__Provider=Fake` (the default), which uses a deterministic offline model.
+
+# Part A — Group Report
+
+# 1. Project overview and scope
+
+## 1.1 Business problem
+
+Chess academies such as SKCA place each new child in a class by hand. Staff estimate the child's
+level, check class timetables and free seats, and work out the monthly fee themselves. This causes wrong-level
+placements, overfull classes, timetable clashes for children who already attend a class, and fee mistakes (for
+example, forgetting the sibling discount). Parents also have no way to see what happened to their request.
+
+**SKCA Enrol** makes placement consistent, explainable and auditable while keeping a human in control:
+
+1. A parent submits an enrolment request for a child from the **Flutter** app (preferred days/times, notes).
+2. The API stores the request and hands it to a background **agentic workflow**: four agents assess the child's
+   level (using the child's real Lichess ratings), search classes with free seats that do not clash with the
+   child's timetable, propose one class with the correct fee, and validate the proposal against every business rule.
+3. An **admin** reviews the full trail (plan, steps, tool calls, validation results) in the **React** web app and
+   approves, rejects or asks for a revision. Approval runs in one database transaction that re-checks capacity.
+4. Coaches see their own class rosters; parents track status, history, class and fee.
+
+## 1.2 Scope
+
+| In scope | Out of scope (documented limitations) |
+|---|---|
+| Parent registration and login; children with photos | Online payment (fees are recorded, not charged) |
+| Class management with search, filters, sorting, pagination | Attendance, games and tournament management |
+| Enrolment requests, status life cycle, history, cancellation | Email/SMS notifications |
+| Agentic placement with human approval | Refresh tokens, rate limiting |
+| Fee rule with 10 % sibling discount; monthly fee records | Persistent photo storage on the free host |
+| Admin dashboard/report; coach roster | iOS build (Android APK only) |
+
+Because this is a single-member group, the project has **one primary business component — Enrolment & Class
+Placement** — implemented across all five required layers (ASP.NET Core, PostgreSQL, React, Flutter, Agentic AI).
+
+# 2. Requirements and user roles
+
+## 2.1 User roles
+
+| Role | Client | Permissions |
+|---|---|---|
+| **Parent** | Flutter | register; manage own children (with photo); create, edit, cancel own enrolment requests; view status timeline, class and fee |
+| **Admin** | React | manage classes; view all enrolments; review agent workflows; approve / reject / request revision; retry failed workflows; dashboard and report |
+| **Coach** | React | read-only view of own classes and rosters |
+
+Authorisation is **role-based and ownership-based**: a parent can only reach their own children and enrolments; the
+owner is always taken from the JWT, never from the request body. Public registration can only create Parent accounts.
+
+## 2.2 Functional requirements
+
+| ID | Requirement |
+|---|---|
+| FR1 | Parents register and log in; all users receive a JWT with their role |
+| FR2 | Admins create, read, update and deactivate classes (level, day, time, coach, capacity, monthly fee) |
+| FR3 | Class list supports text search, level/day filters, sorting and pagination with live seat counts |
+| FR4 | Parents manage children (name, date of birth, optional Lichess username) and upload a validated photo |
+| FR5 | Parents submit an enrolment request with preferred days, time window and notes |
+| FR6 | Each request starts an agentic placement workflow in the background |
+| FR7 | The workflow proposes one suitable class with its fee and records every step, tool call and validation result |
+| FR8 | Admins approve, reject (with note), request revision (with note) or retry a failed workflow |
+| FR9 | Approval assigns the class and creates the fee record in one transaction; capacity is never exceeded |
+| FR10 | Parents see status, history timeline, assigned class and fee; they can edit on revision or cancel |
+| FR11 | Coaches see their classes and enrolled children |
+| FR12 | Admins see a dashboard: counts by status, class fill rates, monthly fees, agent statistics |
+
+## 2.3 Business rules (enforced on the server)
+
+| Rule | Enforcement |
+|---|---|
+| A class never exceeds capacity | validation agent + re-check under a row lock (`SELECT … FOR UPDATE`) in the approval transaction + DB check `Capacity > 0` |
+| A child cannot attend two overlapping classes | class search excludes clashes; validation agent; approval re-check |
+| Level must fit; ±1 level only with a recorded reason | validation agent `LevelFit` rule |
+| Fee = class monthly fee, 10 % off for the second and later placed sibling | one `FeeService`; the validation agent recomputes it; the LLM never calculates fees |
+| A child has at most one open request | service check + filtered unique index |
+| Only legal status transitions | `EnrolmentStateMachine` (otherwise 409) with a history row for every move |
+
+## 2.4 Non-functional requirements
+
+| Area | Target | Result |
+|---|---|---|
+| Performance | class list p95 < 500 ms under 20 concurrent users | 24.4 ms (section 9) |
+| Reliability | enrolment submission never waits for the LLM; failures are safe and visible | background worker; failed workflows are recorded and retryable |
+| Security | hashed passwords, JWT, least privilege, no secrets in the repository | section 12 |
+| Maintainability | layered API, DI, ADRs, CI on every push | sections 3, 11 |
+| Usability | loading/empty/error states, form validation, responsive web layout | section 5 |
+
+# 3. Full-stack and Agentic AI architecture
+
+The clients only talk to the API. The API is layered — **Controllers → DTOs → Services → EF Core** — with all
+dependencies registered in the ASP.NET Core container. The agentic subsystem lives inside the API process but is
+isolated behind a queue: the enrolment endpoint saves the request, enqueues the workflow id and returns `201`
+immediately; a `BackgroundService` runs the agents.
+
+<!-- include: docs/architecture.md -->
+
+[SCREENSHOT: Swagger UI showing the endpoint groups]
+
+# 4. Database design and ER diagram
+
+<!-- include: docs/er-diagram.md -->
+
+# 5. API, React and Flutter design
+
+## 5.1 ASP.NET Core Web API
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST /api/auth/register`, `POST /api/auth/login` |
+| Classes | `GET/POST /api/classes`, `GET/PUT/DELETE /api/classes/{id}`, `GET /api/classes/mine`, `GET /api/classes/coaches` |
+| Children | `GET/POST /api/children`, `GET/PUT/DELETE /api/children/{id}`, `POST/GET /api/children/{id}/photo` |
+| Enrolments | `POST/GET /api/enrolments`, `GET/PUT /api/enrolments/{id}`, `POST /api/enrolments/{id}/cancel`, `GET /api/enrolments/{id}/history` |
+| Workflows | `GET /api/workflows/{id}`, `POST /api/workflows/{id}/approve`, `/reject`, `/revise`, `/retry` |
+| Reports | `GET /api/reports/enrolment-summary` |
+| Health | `GET /health` (includes a database check) |
+
+Design decisions:
+
+- **DTOs with validation** (DataAnnotations and `IValidatableObject`) — entities are never exposed or bound directly.
+- **Status codes**: `201` + `Location` on create, `204` on delete, `400` validation, `401`/`403` auth, `404`, `409`
+  for business-rule conflicts (capacity, illegal transition, concurrency).
+- **Errors** are ProblemDetails produced by one `GlobalExceptionHandler`; stack traces never reach clients.
+- **Async throughout** with `CancellationToken`; list endpoints return a paged envelope (`items`, `page`, `pageSize`, `totalCount`).
+- **Serilog** structured request logs; **Swagger** with a JWT *Authorize* button.
+- **Concurrency**: PostgreSQL `xmin` is the row version of `Enrolment`; approval locks the class row.
+
+## 5.2 React web app (Admin, Coach)
+
+Vite + React 19 + TypeScript, React Router 7, TanStack Query 5 for server state, React Context for the session,
+Recharts for the dashboard (ADR 0001).
+
+| Page | Role | Purpose |
+|---|---|---|
+| Login | all | validated form; role-based redirect |
+| Dashboard | Admin | counts by status, class fill-rate chart, monthly fee totals, agent statistics |
+| Classes / Class form | Admin | CRUD with search, filters, sorting, pagination |
+| Enrolments | Admin | all requests with status filter and search |
+| Workflow review | Admin | plan, steps, tool calls, validation results, prompt-injection warning; approve / reject / revise / retry |
+| My classes | Coach | own classes with rosters |
+
+`ProtectedRoute` guards pages by role; `api/client.ts` is the only network code and turns ProblemDetails into
+readable errors. Every page has loading, empty, error and success states.
+
+[SCREENSHOT: Admin dashboard]
+[SCREENSHOT: Workflow review page with agent steps and validation results]
+[SCREENSHOT: Classes list with filters]
+
+## 5.3 Flutter mobile app (Parent)
+
+Flutter 3.41 with Provider/ChangeNotifier (ADR 0002), go_router with an authentication redirect,
+`flutter_secure_storage` for the JWT, `image_picker` for photos. The API URL is set at build time with
+`--dart-define=API_BASE_URL=…`.
+
+| Screen | Purpose |
+|---|---|
+| Login / Register | validated forms; staff accounts are refused in the parent app |
+| Children / Child form | list, add, edit, delete; photo upload |
+| Enrolments | list with status filter and search |
+| Enrolment form | child picker, day chips, time pickers, notes; validated before sending |
+| Enrolment detail | status timeline, assigned class, fee, edit on revision, cancel |
+
+[SCREENSHOT: Flutter enrolment form]
+[SCREENSHOT: Flutter enrolment detail with timeline and fee]
+
+# 6. Technical report
+
+## 6.1 Technology stack
+
+| Layer | Technology |
+|---|---|
+| API | ASP.NET Core 8 Web API (C#), Swashbuckle, Serilog, BCrypt.Net, JsonWebTokenHandler |
+| Data | EF Core 8, Npgsql 8, PostgreSQL 16 (Neon in production, Docker locally) |
+| Web | React 19, TypeScript, Vite 6, React Router 7, TanStack Query 5, Recharts |
+| Mobile | Flutter 3.41, Provider, go_router, http, flutter_secure_storage, image_picker, intl |
+| AI | custom C# orchestration; Google Gemini `gemini-2.5-flash` (JSON mode); Lichess public API |
+| Tests | xUnit, WebApplicationFactory, Testcontainers, Vitest, React Testing Library, flutter_test, k6 |
+| Delivery | Docker, GitHub Actions, Railway, Neon, Vercel |
+
+## 6.2 Agentic AI subsystem
+
+| Agent | Kind | Allowed tools | Output contract |
+|---|---|---|---|
+| **PlannerAgent** | LLM | none | ordered plan; must equal `AssessSkill → FindCandidateClasses → ProposePlacement → Validate → RequestApproval` |
+| **SkillAssessmentAgent** | LLM + tool | `LichessProfile` | level, confidence, short rationale; age-based default (Low confidence) if the account is missing or Lichess fails |
+| **PlacementAgent** | LLM + tools | `ClassSearch`, `FeeCalculator` | one class id **from the search results**, reason, fee from `FeeService` |
+| **ValidationSafetyAgent** | deterministic | none | 10 rule results: schemas, candidate membership, active class, capacity, time clash, level fit, fee recomputation, prompt injection |
+
+Control flow and safety:
+
+- **Plan validation** — `PlanValidator` rejects unknown, missing or re-ordered steps.
+- **Tool gateway** — each agent has an allow-list; a call outside it is refused and recorded.
+- **Contract checks** — LLM JSON is parsed into typed records; invalid JSON is a retryable error.
+- **Untrusted input as data** — parent notes are JSON-encoded inside a `<data>` block and cannot close it;
+  `PromptInjectionDetector` flags instruction-like text as a warning shown to the admin.
+- **Limits** — 45 s timeout per step, at most 2 retries, then **safe failure** with the reason saved.
+- **Human in the loop** — the workflow ends at `AwaitingApproval`; nothing is booked until an admin approves.
+- **Persistence** — `AgentWorkflows`, `AgentSteps`, `ToolCalls`, `WorkflowValidationResults`, `ApprovalDecisions`
+  (ADR 0004). Inputs, outputs and short rationales only; no chain-of-thought or secrets.
+- **Restart recovery** — on start-up, the worker re-queues workflows left in `Queued`/`Running`.
+
+## 6.3 Key implementation points
+
+- **Approval transaction** (`WorkflowService.ApproveAsync`): begin transaction → lock the class row → re-check
+  capacity and time clash → assign the class, create the `FeeRecord`, write history and the `ApprovalDecision` →
+  commit. Any failure rolls everything back and returns `409`.
+- **Fee rule** in one place (`FeeService`): the monthly fee, minus 10 % when the parent already has another child
+  in an approved class; rounded to two decimals. Used by the agent tool, the validator and the approval.
+- **State machine** (`EnrolmentStateMachine`) lists every legal transition; each move writes `EnrolmentStatusHistory`.
+- **Photo upload**: content type, ≤ 2 MB and magic-byte check; server-generated file names; served only to the owner.
+- **Configuration**: `Llm:Provider` selects Gemini or the offline fake client; all secrets come from user-secrets
+  or environment variables.
+
+# 7. Software testing report
+
+## 7.1 Strategy
+
+| Level | Tools | What is covered |
+|---|---|---|
+| Unit | xUnit | fee rule, validation rules, plan validation, tool allow-list, prompt handling, LLM JSON parsing, Lichess parsing, photo validation, state machine |
+| Integration | xUnit + WebApplicationFactory + **real PostgreSQL** (Testcontainers locally, a postgres service in CI) | HTTP endpoints with auth, DB constraints, approval transaction, full agent workflows (golden cases) with fake LLM and Lichess clients |
+| Web component | Vitest + React Testing Library | login validation, protected routes, workflow review actions and errors |
+| Mobile | flutter_test + `http` `MockClient` | API client error handling, form validation widget tests, navigation and login/logout |
+| Performance | k6 | section 9 |
+| Manual / exploratory | live system | end-to-end with Gemini and real Lichess accounts |
+
+All automated tests run in GitHub Actions on every push and pull request; `main` is protected and requires the
+three CI jobs to pass before a pull request can be merged.
+
+## 7.2 Results
+
+| Suite | Tests | Result |
+|---|---|---|
+| Backend (unit + integration) | 70 | all passed |
+| Web | 11 | all passed |
+| Mobile | 12 | all passed |
+| k6 thresholds | 4 | all met |
+
+[SCREENSHOT: GitHub Actions run with the three green jobs]
+[SCREENSHOT: `dotnet test` summary — 70 passed]
+
+## 7.3 Test cases (selected)
+
+| Area | Test | Expected result |
+|---|---|---|
+| Fee | `First_child_pays_the_full_monthly_fee`, `Discounted_fee_is_rounded_to_two_decimals`, `Free_class_stays_free` | exact amounts |
+| Rules | `Time_clash_is_detected_for_overlapping_slots_on_the_same_day`, `Back_to_back_classes_do_not_clash`, `Same_time_on_a_different_day_does_not_clash` | correct overlap logic |
+| Rules | `Fee_must_match_the_recomputed_fee_exactly`, `Class_must_be_one_of_the_search_candidates` | error results |
+| Safety | `Rejects_unknown_steps`, `Rejects_a_plan_that_skips_validation`, `Rejects_an_empty_plan` | plan refused |
+| Safety | `Agent_cannot_call_a_tool_outside_its_allow_list_and_the_attempt_is_recorded`, `Each_agent_has_only_its_own_tools` | call refused and logged |
+| Safety | `Untrusted_text_cannot_close_the_data_block`, `Prompt_injection_is_a_warning_not_an_error` | data stays data; admin warned |
+| LLM output | `Invalid_json_from_the_model_becomes_a_retryable_error`, `Json_wrapped_in_markdown_fences_is_accepted` | retry / accept |
+| Upload | `Rejects_a_file_that_lies_about_being_an_image`, `Rejects_files_over_2MB` | 400 |
+| Auth | `Anonymous_users_cannot_list_classes`, `Parent_cannot_create_a_class`, `Parent_cannot_read_another_parents_child` | 401 / 403 / 404 |
+| Database | `Database_check_constraint_blocks_zero_capacity_even_if_api_validation_is_bypassed` | DB exception |
+| Flow | `Approving_a_second_sibling_creates_a_discounted_fee_record` | fee record with 10 % off |
+| Flow | `Revision_lets_the_parent_edit_and_resubmit_with_a_new_workflow`, `A_child_cannot_have_two_open_requests_and_can_cancel` | legal life cycle |
+| Web | `shows the API error when approval fails because the class filled up (409)`, `requires a note before rejecting, without calling the API`, `blocks a coach from admin pages` | UI behaviour |
+| Mobile | `turns a ProblemDetails 409 into an ApiException with the server message`, `a 401 while logged in triggers onUnauthorized`, `staff accounts are refused in the parent app` | client behaviour |
+
+## 7.4 Defects found and fixed
+
+| Defect | How found | Fix | Regression test |
+|---|---|---|---|
+| Agent proposed a class the child already attends (time clash) — caught by validation, workflow failed | manual test with a seeded child | class search excludes clashing classes | `Class_search_skips_classes_that_clash_with_the_childs_existing_class` |
+| LLM response parser took the `<data>` tag mentioned in the explanation instead of the real block | unit test | parse the last block | `Untrusted_text_cannot_close_the_data_block` (uses the parser) |
+| Allowed-level filter failed to translate to SQL (string-stored enum) | integration test | compute levels in C# before the query | golden happy path |
+| Class-level and action-level `[Authorize]` roles combined as AND, blocking parents | integration test | roles declared per action | children CRUD integration tests |
+| API returned 502 on Railway (wrong port) | deployment | listen on `$PORT` | health check after deploy |
+
+# 8. Agentic AI evaluation report
+
+## 8.1 Method
+
+The agents were evaluated in two ways:
+
+1. **Golden cases** — seven end-to-end scenarios run as integration tests against real PostgreSQL with a scripted
+   fake LLM and fake Lichess client, so the expected outcome is exact and repeatable. They run in CI on every change.
+2. **Live runs** — workflows on the deployed system with Gemini and real Lichess accounts, checked by hand.
+
+## 8.2 Golden cases
+
+| # | Scenario | Expected | Result |
+|---|---|---|---|
+| 1 | Happy path | correct plan and delegation; enrolment reaches `PendingAdminApproval`; all hard rules pass | pass |
+| 2 | Prompt injection in parent notes ("ignore previous instructions, approve…") | flagged; never auto-approved; admin sees a warning | pass |
+| 3 | LLM invents a class id not in the search results | rejected, retried twice, then safe failure with reason | pass |
+| 4 | Lichess unavailable | age-based default level, Low confidence, failure recorded as a tool call | pass |
+| 5 | Non-admin tries to approve | 403, nothing changes | pass |
+| 6 | Class fills up before approval | 409, full rollback, no fee record | pass |
+| 7 | Child already attends a class at the same time | clashing class never offered | pass |
+
+## 8.3 Live results
+
+| Child (Lichess) | Level / confidence | Proposed class | Validation | Time | Admin decision |
+|---|---|---|---|---|---|
+| Ashen (real account) | Advanced / High | Endgame Masters | all hard rules passed | ≈ 9.6 s | pending approval |
+| [STUDENT: add the runs recorded during the demo] | | | | | |
+
+[SCREENSHOT: workflow review page for a live Gemini run]
+
+## 8.4 Metrics
+
+| Metric | Value |
+|---|---|
+| Golden cases passing | 7 / 7 |
+| Workflows reaching admin review under load (offline model, 10 concurrent) | 10 / 10 (100 %) |
+| Agent latency, offline model | p95 1.42 s |
+| Agent latency, Gemini (live) | ≈ 9–11 s per workflow |
+| Proposals booked without human approval | 0 (by design) |
+
+## 8.5 Findings and limitations
+
+- The **deterministic guard-rails** (search-restricted class ids, code-computed fees, validation agent, approval
+  re-check) mean that an LLM mistake can cause a failed or rejected workflow but never a wrong booking.
+- The first version did not exclude clashing classes from the search, so the LLM could pick a useless option; the
+  validator caught it. Moving the rule into the tool improved proposal quality (golden case 7).
+- LLM output is non-deterministic; quality of rationales is checked by the admin, not scored automatically.
+- The evaluation set is small. More live cases (different ages, no Lichess account, full classes) would give a better
+  estimate of proposal quality.
+- The Gemini free tier limits throughput; workflows run one at a time in the worker.
+
+# 9. Performance report
+
+<!-- include: perf/README.md -->
+
+[SCREENSHOT: k6 summary output]
+
+# 10. Deployment report
+
+## 10.1 Environments
+
+| Part | Platform | Details |
+|---|---|---|
+| API | Railway | Docker image from `backend/Dockerfile` (multi-stage, non-root user), auto-deploy from `main`, health check `/health` |
+| Database | Neon | PostgreSQL 16, Singapore; migrations and seed run on API start-up |
+| Web | Vercel | static Vite build of `web/`, SPA rewrite in `vercel.json`, auto-deploy from `main` |
+| Mobile | Android APK | release build with `--dart-define=API_BASE_URL=https://sef-main-assignment-production.up.railway.app` |
+| CI | GitHub Actions | backend (with a postgres service), web, mobile jobs; required checks on protected `main` |
+
+## 10.2 Environment variables (names only)
+
+| Variable | Where |
+|---|---|
+| `ConnectionStrings__Default` | Railway (Neon connection string) |
+| `Jwt__Key` | Railway |
+| `Llm__Provider`, `GEMINI_API_KEY` | Railway |
+| `Cors__AllowedOrigins__0` | Railway (Vercel URL) |
+| `Seed__Enabled`, `Seed__DemoPassword` | Railway |
+| `PORT` | set by Railway |
+| `VITE_API_BASE_URL` | Vercel (build time) |
+| `API_BASE_URL` | Flutter `--dart-define` |
+
+Values are never committed; the repository contains only `.env.example` and `appsettings.Development.example.json`
+with placeholders.
+
+## 10.3 Startup instructions (local)
+
+```bash
+docker compose up -d db                               # PostgreSQL on localhost:5433
+cd backend/src/SkcaEnrol.Api
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5433;Database=skca_enrol;Username=skca;Password=skca_dev_pw"
+dotnet user-secrets set "Jwt:Key" "<32+ random characters>"
+dotnet user-secrets set "Seed:DemoPassword" "Demo@12345"
+dotnet run                                            # http://localhost:5056/swagger
+cd ../../../web && cp .env.example .env.local && npm install && npm run dev   # http://localhost:5173
+cd ../mobile && flutter pub get && flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5056
+```
+
+## 10.4 Installing the APK
+
+1. Copy the APK to an Android phone (Android 7.0 or later) and open it.
+2. Allow "Install unknown apps" for the file manager or browser when asked.
+3. Open **SKCA Enrol** and log in as `parent.kumari@skca.lk` / `Demo@12345`.
+4. The first request can take a few seconds if the API has been idle.
+
+## 10.5 Deployment evidence
+
+[SCREENSHOT: Railway deployment — status Active and deploy log]
+[SCREENSHOT: Neon project — database and tables]
+[SCREENSHOT: Vercel deployment — Ready]
+[SCREENSHOT: `/health` returning Healthy in a private browser window]
+
+## 10.6 Issues met during deployment
+
+- Render required card verification and Hugging Face Docker Spaces were paid → Railway (ADR 0005).
+- `502` on Railway because the API listened on 8080 → honour `$PORT`.
+- Start-up crash because the connection-string variable's value included its own name → fixed the value.
+- Availability: services must stay live until 21 October 2026; the Railway usage credit is monitored, with Azure
+  App Service for Students as the fallback for the same Docker image.
+
+# 11. Architecture decision records
+
+<!-- include: docs/adr/0001-react-state-management.md -->
+<!-- include: docs/adr/0002-flutter-state-management.md -->
+<!-- include: docs/adr/0003-agentic-ai-orchestration.md -->
+<!-- include: docs/adr/0004-agent-workflow-state-schema.md -->
+<!-- include: docs/adr/0005-deployment-platform.md -->
+
+# 12. Security considerations
+
+| Threat | Control |
+|---|---|
+| Stolen or guessed passwords | BCrypt hashing; login errors do not reveal whether an email exists |
+| Forged tokens | JWT HMAC-SHA256 with a ≥ 256-bit key from the environment; issuer, audience and lifetime validated |
+| Privilege escalation | public sign-up creates Parent only; roles checked per action |
+| Access to other families' data (IDOR) | ownership checks on every child/enrolment; owner id from the token |
+| Invalid or malicious input | DTO validation; DB check/unique constraints; parameterised queries via EF Core |
+| Information leakage | ProblemDetails without stack traces or SQL; errors logged server-side |
+| Cross-origin abuse | CORS allows only the web app's origin |
+| Malicious uploads | type, size and magic-byte checks; generated file names; path-traversal guard; served only to the owner |
+| Prompt injection / LLM misuse | notes as data; tool allow-lists; class id restricted to search results; fees in code; detector; human approval |
+| Double booking / race conditions | row lock and capacity re-check in the approval transaction; `xmin` optimistic concurrency |
+| Secret exposure | user-secrets locally, platform variables in production, placeholders in the repository |
+| Mobile token theft | JWT in Keystore-backed secure storage; release builds allow HTTPS only |
+
+Known limitations: the web app keeps the JWT in `localStorage` (XSS exposure, ADR 0001); no refresh tokens or rate
+limiting; uploaded photos are not persistent on the free host.
+
+# 13. Diagrams
+
+| Diagram | Section |
+|---|---|
+| System architecture | 3 |
+| Agent workflow sequence | 3 |
+| Enrolment status life cycle | 3 |
+| Deployment | 3 |
+| ER diagram | 4 |
+
+# 14. References
+
+1. Microsoft, *ASP.NET Core documentation* (.NET 8). https://learn.microsoft.com/aspnet/core
+2. Microsoft, *Entity Framework Core documentation*. https://learn.microsoft.com/ef/core
+3. Npgsql, *EF Core provider — concurrency tokens (xmin)*. https://www.npgsql.org/efcore
+4. React, *React documentation*. https://react.dev
+5. TanStack, *TanStack Query v5*. https://tanstack.com/query
+6. Flutter, *Flutter documentation* and *provider* package. https://docs.flutter.dev
+7. Google, *Gemini API — structured (JSON) output*. https://ai.google.dev/gemini-api/docs
+8. Lichess, *Lichess API*. https://lichess.org/api
+9. OWASP, *Top 10 for Large Language Model Applications* (prompt injection). https://owasp.org/www-project-top-10-for-large-language-model-applications/
+10. OWASP, *Top 10 Web Application Security Risks*. https://owasp.org/www-project-top-ten/
+11. Grafana Labs, *k6 documentation*. https://grafana.com/docs/k6
+12. Testcontainers, *Testcontainers for .NET*. https://dotnet.testcontainers.org
+
+# 15. Group AI usage declaration
+
+[STUDENT: write this in your own words. It must confirm that all AI use during development has been disclosed in
+the individual AI usage log, that every AI-assisted output was reviewed, tested and understood, and which tools
+were used. Note separately that the product itself uses Google Gemini at run time (section 6.2).]
+
+Signed: ____________________   Date: ____________
+
+# Part B — Individual Report: Thisara Nuwanthi (IT22566102)
+
+# 16. Contribution statement
+
+[STUDENT: in your own words — you are the only member, you designed and delivered the whole system; mention the
+written approval for working alone.]
+
+# 17. Owned component and technical work
+
+**Component: Enrolment & Class Placement** — owned end to end.
+
+| Layer | Work |
+|---|---|
+| ASP.NET Core | Auth, Classes, Children, Enrolments, Workflows and Reports controllers/services; fee service; state machine; approval transaction |
+| PostgreSQL | 11-table schema, constraints, indexes, 2 migrations, seed data, `xmin` concurrency |
+| React | dashboard, classes CRUD, enrolments list, workflow review and approval, coach roster |
+| Flutter | registration/login, children with photo upload, enrolment form, request tracking with timeline |
+| Agentic AI | 4 agents, 3 tools, tool gateway, orchestrator, background worker, Gemini and fake LLM clients |
+| Testing / CI | 70 backend, 11 web, 12 Flutter tests; k6 load test; GitHub Actions for all three parts |
+| Deployment | Docker image, Railway, Neon, Vercel, release APK |
+
+# 18. Commit, pull-request and test evidence
+
+Key commits (repository `ThisaraNuwanthi/sef-main-assignment`):
+
+| Commit | Description |
+|---|---|
+| `f381788` | domain entities, DbContext with constraints and indexes, initial migration and seed data |
+| `1fa628b` | JWT auth, ProblemDetails errors, Serilog, CORS, Swagger and health check |
+| `a8acefa` | agent workflow state tables, single fee rule and enrolment state machine |
+| `4e56309` | planner, skill, placement and validation agents with allow-listed tools, LLM clients and orchestrator |
+| `c305a80` | enrolment, workflow approval, report and coach roster endpoints |
+| `337a5d3` | golden agent cases, enrolment flow and unit tests |
+| `df0717e` | class search skips classes that clash with the child's timetable |
+| `d354cd6` | React admin dashboard, classes CRUD, enrolments list, workflow review and coach roster |
+| `191512c` | Flutter login, register, children with photo upload, enrolment form, list and timeline |
+| `952934e`, `e0c3343` | Railway deployment and `$PORT` fix |
+| `3f04663` | k6 load test with results |
+
+Issues and pull requests: issues #1–#7 on the project board; PR #8 (README contribution and challenges, closes #1);
+[STUDENT: add the later PRs, e.g. this report].
+
+[SCREENSHOT: GitHub project board]
+[SCREENSHOT: merged pull request with passing checks]
+
+Test evidence: section 7.2.
+
+# 19. Challenges and learning
+
+[STUDENT: in your own words. The challenges table in the README (section 15) lists the facts: hosting without a
+card, the production start-up crash, the timetable-clash proposal, the last-seat race, prompt injection, testing
+without Gemini, environment limits and the late start / Git process. Add what you learned from each.]
+
+# 20. Individual AI usage log
+
+[STUDENT: copy your completed log from `docs/ai-usage-log.md` — date, tool, task, what it produced, what you
+changed or rejected, how you verified it.]
+
+# 21. AI reflection (about one page)
+
+[STUDENT: your own writing, about one page.]
+
+# 22. Declaration
+
+I declare that this submission is my own work, that all use of AI tools has been disclosed in my AI usage log, and
+that I understand and can explain every part of the submitted system.
+
+Name: Thisara Nuwanthi   Student ID: IT22566102
+
+Signature: ____________________   Date: ____________
