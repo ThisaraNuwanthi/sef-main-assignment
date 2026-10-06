@@ -70,6 +70,28 @@ Railway environment variable `GEMINI_API_KEY`; evaluators need no key. To run lo
 
 # Part A — Group Report
 
+This is an individual submission (repeat student, not assigned to a group), so the Group Report describes the
+whole system that I designed, built, tested and deployed. It follows the order required by the specification:
+
+| Section | Content |
+|---|---|
+| 1–2 | Project overview, scope, requirements, user roles and business rules |
+| 3–5 | Full-stack and agentic AI architecture, database and ER diagram, API, React and Flutter design |
+| 6 | Technical report: technology stack, agentic AI subsystem and key implementation points |
+| 7 | Software testing report: strategy, results, test cases and defects found |
+| 8 | Agentic AI evaluation report: golden cases, live runs, metrics and findings |
+| 9 | Performance report (k6 load test) |
+| 10 | Deployment report: environments, configuration, start-up, APK installation and evidence |
+| 11 | Architecture decision records (ADR 0001–0005) |
+| 12–14 | Security considerations, list of diagrams and references |
+| 15 | AI usage declaration |
+
+In short, **SKCA Enrol** lets parents request a chess class for their child from a Flutter mobile app. Four AI
+agents assess the child's level from real Lichess ratings, find a suitable class with free seats and no timetable
+clash, propose it with the correct fee, and validate every business rule. An admin then reviews and approves the
+proposal in a React web app, in a single database transaction. The ASP.NET Core API and PostgreSQL database sit
+between the two clients, and the whole system is deployed on Railway, Neon and Vercel with CI on GitHub Actions.
+
 # 1. Project overview and scope
 
 ## 1.1 Business problem
@@ -540,6 +562,19 @@ Signed: {{SIGNATURE}}
 Date: 6 October 2026
 
 # Part B — Individual Report: Thisara Nuwanthi (IT22566102)
+
+This part covers my individual contribution, as required for each student. As the only member, I own the single
+primary business component, **Enrolment & Class Placement**, across every layer of the system.
+
+| Section | Content |
+|---|---|
+| 16 | Contribution statement |
+| 17 | Owned component and technical work |
+| 18 | Key commit, pull-request and test evidence |
+| 19 | Challenges and learning |
+| 20 | Individual AI usage log |
+| 21 | AI reflection |
+| 22 | Signed declaration |
 
 # 16. Contribution statement
 
