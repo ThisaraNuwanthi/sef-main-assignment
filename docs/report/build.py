@@ -6,6 +6,7 @@ Needs pandoc. Mermaid diagrams are rendered to PNG with the public mermaid.ink s
 Output: docs/report/build/SE3090_IT22566102_Report.docx (git-ignored).
 """
 import base64
+import os
 import pathlib
 import re
 import subprocess
@@ -39,6 +40,9 @@ def mermaid(match: re.Match, counter=[0]) -> str:
 
 md = (HERE / "report.md").read_text(encoding="utf-8")
 md = re.sub(r"^<!-- include: (.+?) -->$", include, md, flags=re.M)
+# The signature image is kept outside the repository; set SKCA_SIGNATURE to its path.
+sig = os.environ.get("SKCA_SIGNATURE")
+md = md.replace("{{SIGNATURE}}", f"![]({sig}){{width=1.8in}}" if sig else "____________________")
 md = re.sub(r"```mermaid\n(.*?)```\n", mermaid, md, flags=re.S)
 source = OUT / "report.full.md"
 source.write_text(md, encoding="utf-8")

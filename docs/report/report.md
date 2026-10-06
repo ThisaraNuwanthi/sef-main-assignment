@@ -1,15 +1,14 @@
 ---
 title: "SE3090 Assignment 1 — SKCA Enrol"
 subtitle: "Chess Academy Enrolment & Class Placement — Integrated Full-Stack and Agentic AI Application"
-author: "Thisara Nuwanthi (IT22566102) — single-member group"
-date: "30 September 2026"
+author: "Thisara Nuwanthi (IT22566102)"
+date: "6 October 2026"
 ---
 
 <!--
   This file is the source of the consolidated report. Build the Word file with:
-      python3 docs/report/build.py
-  then open docs/report/build/SE3090_IT22566102_Report.docx, complete the parts marked [STUDENT]
-  and export to PDF.
+      SKCA_SIGNATURE=/path/to/signature.png python3 docs/report/build.py
+  then open docs/report/build/SE3090_IT22566102_Report.docx and export it to PDF.
   Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
 -->
 
@@ -18,16 +17,15 @@ date: "30 September 2026"
 | Item | Value |
 |---|---|
 | Module | SE3090 Software Engineering Frameworks — Assignment 1 |
-| Submission name | SE3090_IT22566102 — individual submission (repeat student, single-member group) |
+| Submission name | SE3090_IT22566102 — individual submission (repeat student) |
 | Student | Thisara Nuwanthi — IT22566102 |
-| Group-size approval | [STUDENT: reference/date of the lecturer-in-charge's written approval] |
 | Repository | https://github.com/ThisaraNuwanthi/sef-main-assignment |
 | React web app | https://web-taupe-two-2l4c58eqb5.vercel.app |
 | API health | https://sef-main-assignment-production.up.railway.app/health |
 | Swagger UI | https://sef-main-assignment-production.up.railway.app/swagger |
 | Database | Neon PostgreSQL 16 (Singapore region) — evidence in section 10.5 |
 | Android APK | `SE3090_IT22566102_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
-| Demonstration video | [STUDENT: link, shared as "anyone with the link can view"] |
+| Demonstration video | https://drive.google.com/file/d/1wkgtnDIP2Y7kw4efOd9p2eQadXM_EHhQ/view?usp=sharing |
 
 **Test accounts** (password for all: `Demo@12345`)
 
@@ -501,18 +499,31 @@ limiting; uploaded photos are not persistent on the free host.
 
 # 15. Group AI usage declaration
 
-[STUDENT: write this in your own words. It must confirm that all AI use during development has been disclosed in
-the individual AI usage log, that every AI-assisted output was reviewed, tested and understood, and which tools
-were used. Note separately that the product itself uses Google Gemini at run time (section 6.2).]
+This is an individual submission, so this declaration covers all of the work. AI tools were used during
+development, mainly Claude Code, and every use is recorded in my AI usage log (section 20). I reviewed, ran and
+tested all AI-assisted code and documents, corrected them where they were wrong, and I understand and can explain
+every part of the submitted system.
 
-Signed: ____________________   Date: ____________
+Separately from the development process, the product itself calls Google Gemini at run time inside the agent
+workflow (section 6.2). This is part of the system's design, not a development aid.
+
+Signed: {{SIGNATURE}}
+
+Date: 6 October 2026
 
 # Part B — Individual Report: Thisara Nuwanthi (IT22566102)
 
 # 16. Contribution statement
 
-[STUDENT: in your own words — you are the only member, you designed and delivered the whole system; mention the
-written approval for working alone.]
+I am a repeat student and was not placed in a group, so I completed this assignment individually and I am
+responsible for the whole system. Its one primary component, Enrolment & Class Placement, runs through all five
+required layers: the ASP.NET Core API, the PostgreSQL database, the React web app, the Flutter mobile app and the
+agentic AI workflow.
+
+I chose the domain, defined the roles, requirements and business rules, directed and reviewed the implementation,
+and tested the system by hand, which is how the timetable-clash problem in section 19 was found. I set up the
+deployment on Railway, Neon and Vercel, recorded the demonstration and prepared this report. AI assistance is
+disclosed in sections 20 and 21.
 
 # 17. Owned component and technical work
 
@@ -557,18 +568,85 @@ Test evidence: section 7.2.
 
 # 19. Challenges and learning
 
-[STUDENT: in your own words. The challenges table in the README (section 15) lists the facts: hosting without a
-card, the production start-up crash, the timetable-clash proposal, the last-seat race, prompt injection, testing
-without Gemini, environment limits and the late start / Git process. Add what you learned from each.]
+**Hosting without a card.** Render asked for card verification, and my card was refused; Hugging Face Docker
+Spaces had become paid. Because the API was already packaged as a Docker image with all settings in environment
+variables, I could move it to Railway without changing code. *Learning:* keep deployment portable, and record the
+decision (ADR 0005) so the reason is not lost.
+
+**The production start-up crash.** After the first Railway deployment the API crashed at start-up. The deploy log
+showed that the connection-string variable's value also contained its own name. *Learning:* read the logs first;
+configuration mistakes look like code bugs, and an application should fail fast with a clear message.
+
+**The agent proposed a class the child already attends.** While testing by hand with Sithmi, the workflow failed:
+the Validation and Safety agent caught a time clash, but the proposal itself was useless. The fix was to exclude
+clashing classes in the class search tool, while keeping the validation and approval checks. *Learning:* defence in
+depth works, manual exploratory testing finds problems that unit tests miss, and every fix needs a regression test.
+
+**The AI service failed during the demonstration.** When I recorded the safety test, Gemini returned HTTP 503 three
+times. The workflow stopped with the reason saved, nothing was booked, and an admin can retry it. *Learning:*
+external AI services are not always available, so timeouts, limited retries and safe failure are essential.
+
+**The last seat and prompt injection.** Two approvals could compete for the last seat, and parent notes could
+contain instructions to the AI. The approval transaction locks the class row and re-checks capacity, and notes are
+passed to the model only as data, with a human approving every placement. *Learning:* never trust the client or
+the model for business rules.
+
+**Late start and Git process.** The system was built in a short, intensive period and the early commits went
+directly to `main`. From the point I noticed this, I used issues, a project board, feature branches and pull
+requests with required CI checks. *Learning:* set up the process on the first day, not at the end.
+
+**Development environment.** Low disk space and unstable downloads of the Android SDK and NDK slowed the mobile
+build. I cleaned regenerable caches and used resumable downloads. *Learning:* check the toolchain early.
 
 # 20. Individual AI usage log
 
-[STUDENT: copy your completed log from `docs/ai-usage-log.md` — date, tool, task, what it produced, what you
-changed or rejected, how you verified it.]
+| Date | Tool | Task (what I asked for) | What it produced | What I changed / rejected | How I verified |
+|---|---|---|---|---|---|
+| 29 Sep 2026 | Claude Code (Anthropic Claude) | Turn my brief (domain, roles, required stack, four distinct agents, security rules) into a phased plan | plan, folder layout, first ADR drafts | I set the domain, scope and roles, and the rules: no secrets in files, my commit identity, no changes to my older project | checked the plan against the specification and marking scheme |
+| 29 Sep 2026 | Claude Code | ASP.NET Core API: entities, DbContext, migrations, seed data, JWT auth, controllers and services | C# code and integration tests | chose a Docker PostgreSQL instead of a local install; reviewed every endpoint in Swagger | 70 backend tests on a real PostgreSQL database; manual calls in Swagger |
+| 29 Sep 2026 | Claude Code | Agentic workflow: four agents, tools, orchestrator, fake and Gemini LLM clients | agent code and seven golden test cases | used my own Gemini key through user-secrets; my manual test showed the agents proposing a class the child already attends, so I asked for the class search to exclude timetable clashes | golden cases plus live runs with Gemini and real Lichess accounts |
+| 29 Sep 2026 | Claude Code | React admin and coach web app | pages, API client, component tests | reviewed each page and the approval flow | 11 Vitest tests; manual testing in the browser |
+| 29 Sep 2026 | Claude Code | Flutter parent app and release APK | screens, state, API client, widget tests | the first APK pointed to a placeholder URL and login failed on my phone; I had it rebuilt with the live API URL | 12 Flutter tests; installed and used the APK on my phone |
+| 29 Sep 2026 | Claude Code | Docker image, deployment configuration and GitHub Actions CI | Dockerfile, Railway and Vercel configuration, CI workflow | rejected Render (card verification failed) and Hugging Face (Docker Spaces are paid) and moved to Railway; I created the accounts and set the environment variables myself; fixed my wrong connection-string variable from the deploy logs | `/health` returns Healthy; all CI jobs pass |
+| 29 Sep 2026 | Claude Code | k6 performance test, README, ADRs and diagrams | test script and documentation | — | the figures come from my own k6 run and test results |
+| 30 Sep 2026 | Claude Code | Git process: issues, project board, branch protection, pull requests | issues #1–#7, board, protected `main` | decided to keep the original history honest and use pull requests for all later work | every later change merged through a pull request with passing checks |
+| 30 Sep–6 Oct 2026 | Claude Code | Consolidated report structure, demo script and video editing | report draft, screenshots taken from my recordings, edited demo video | I recorded every clip, chose what to cut and reviewed the final video and report | checked every figure in the report against test output and the live system |
+
+Run-time AI (part of the product, not the development process): the agents call Google Gemini (`gemini-2.5-flash`)
+through `ILlmClient`; see section 6.2.
 
 # 21. AI reflection (about one page)
 
-[STUDENT: your own writing, about one page.]
+I used Claude Code throughout this assignment, and most of the code and documentation was first produced by it
+from my instructions. My work was deciding what to build, setting the rules it had to follow, checking the output
+by running it, and correcting the direction when something was wrong. This let me deliver a complete system with an
+API, a database, two client apps, four agents, tests, CI and a live deployment, which I could not have finished
+alone in the time I had as a repeat student.
+
+The most useful part was speed with structure. The tool produced a layered API, consistent tests and documentation
+from the start, so I could spend my time on testing and on understanding the design. Golden test cases for the
+agents were especially valuable: they turned "the AI seems to work" into repeatable checks that run in CI.
+
+AI output was not always right, and the problems were usually found by running the system rather than by reading
+code. My own manual test showed the agents proposing a class that clashed with the child's timetable. The first
+Android build pointed to a placeholder address, so login failed on my phone. Deployment failed for reasons that had
+nothing to do with code: a card requirement, a paid plan and a mistyped environment variable. In each case the fix
+came from evidence such as test results, logs and the behaviour of the live system, not from trusting the tool.
+
+The biggest risk was understanding. Because the tool can write code faster than I can read it, it would be easy to
+submit something I cannot explain. To reduce this, I went through the design with the viva question notes in the
+repository, traced one complete enrolment from the Flutter app through the API, the agents and the approval
+transaction, and made sure I can explain why each safety control exists: the plan validator, the tool allow-lists,
+notes treated as data, fees calculated in code, the row lock and human approval.
+
+Building an agentic system also changed how I see AI. The agents in this project are useful because they are
+constrained: the model may only choose from classes returned by a database search, fees are never calculated by the
+model, and a human approves every placement. I applied the same idea to my own use of AI during development: I let
+it propose, but I verified and decided.
+
+If I did this again, I would start earlier, use branches and pull requests from the first commit, and write more of
+the core business logic myself before asking for help, so that my understanding grows with the code rather than
+after it.
 
 # 22. Declaration
 
@@ -577,4 +655,6 @@ that I understand and can explain every part of the submitted system.
 
 Name: Thisara Nuwanthi   Student ID: IT22566102
 
-Signature: ____________________   Date: ____________
+Signature: {{SIGNATURE}}
+
+Date: 6 October 2026
