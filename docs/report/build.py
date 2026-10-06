@@ -3,7 +3,7 @@
     python3 docs/report/build.py
 
 Needs pandoc. Mermaid diagrams are rendered to PNG with the public mermaid.ink service.
-Output: docs/report/build/SE3090_report.docx (git-ignored).
+Output: docs/report/build/SE3090_IT22566102_Report.docx (git-ignored).
 """
 import base64
 import pathlib
@@ -43,6 +43,6 @@ md = re.sub(r"```mermaid\n(.*?)```\n", mermaid, md, flags=re.S)
 source = OUT / "report.full.md"
 source.write_text(md, encoding="utf-8")
 
-subprocess.run(["pandoc", source.name, "-o", "SE3090_report.docx", "--toc", "--toc-depth=2",
-                "--resource-path", "."], cwd=OUT, check=True)
-print(OUT / "SE3090_report.docx")
+subprocess.run(["pandoc", source.name, "-o", "SE3090_IT22566102_Report.docx", "--toc", "--toc-depth=2",
+                "--resource-path", f".:{HERE}/build"], cwd=OUT, check=True)
+print(OUT / "SE3090_IT22566102_Report.docx")

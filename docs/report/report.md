@@ -8,8 +8,8 @@ date: "30 September 2026"
 <!--
   This file is the source of the consolidated report. Build the Word file with:
       python3 docs/report/build.py
-  then open docs/report/build/SE3090_report.docx, add the screenshots marked [SCREENSHOT],
-  complete the parts marked [STUDENT], and export to PDF.
+  then open docs/report/build/SE3090_IT22566102_Report.docx, complete the parts marked [STUDENT]
+  and export to PDF.
   Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
 -->
 
@@ -18,7 +18,7 @@ date: "30 September 2026"
 | Item | Value |
 |---|---|
 | Module | SE3090 Software Engineering Frameworks — Assignment 1 |
-| Group | [STUDENT: group number, e.g. SE3090_Gxx] — single-member group (repeat student) |
+| Submission name | SE3090_IT22566102 — individual submission (repeat student, single-member group) |
 | Student | Thisara Nuwanthi — IT22566102 |
 | Group-size approval | [STUDENT: reference/date of the lecturer-in-charge's written approval] |
 | Repository | https://github.com/ThisaraNuwanthi/sef-main-assignment |
@@ -26,7 +26,7 @@ date: "30 September 2026"
 | API health | https://sef-main-assignment-production.up.railway.app/health |
 | Swagger UI | https://sef-main-assignment-production.up.railway.app/swagger |
 | Database | Neon PostgreSQL 16 (Singapore region) — evidence in section 10.5 |
-| Android APK | `SE3090_[group]_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
+| Android APK | `SE3090_IT22566102_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
 | Demonstration video | [STUDENT: link, shared as "anyone with the link can view"] |
 
 **Test accounts** (password for all: `Demo@12345`)
@@ -137,7 +137,7 @@ immediately; a `BackgroundService` runs the agents.
 
 <!-- include: docs/architecture.md -->
 
-[SCREENSHOT: Swagger UI showing the endpoint groups]
+![Swagger UI with the JWT Authorize button](../images/swagger.png){width=100%}
 
 # 4. Database design and ER diagram
 
@@ -184,9 +184,15 @@ Recharts for the dashboard (ADR 0001).
 `ProtectedRoute` guards pages by role; `api/client.ts` is the only network code and turns ProblemDetails into
 readable errors. Every page has loading, empty, error and success states.
 
-[SCREENSHOT: Admin dashboard]
-[SCREENSHOT: Workflow review page with agent steps and validation results]
-[SCREENSHOT: Classes list with filters]
+![Admin dashboard](../images/web-dashboard.png){width=100%}
+
+![Enrolment requests list](../images/web-enrolments.png){width=100%}
+
+![Workflow review: plan and validation results](../images/web-review-validation.png){width=100%}
+
+![Coach view: own classes and rosters (read-only)](../images/web-coach.png){width=100%}
+
+![A parent account is refused on the staff website](../images/web-parent-refused.png){width=100%}
 
 ## 5.3 Flutter mobile app (Parent)
 
@@ -202,8 +208,7 @@ Flutter 3.41 with Provider/ChangeNotifier (ADR 0002), go_router with an authenti
 | Enrolment form | child picker, day chips, time pickers, notes; validated before sending |
 | Enrolment detail | status timeline, assigned class, fee, edit on revision, cancel |
 
-[SCREENSHOT: Flutter enrolment form]
-[SCREENSHOT: Flutter enrolment detail with timeline and fee]
+![Enrolment form](../images/app-form.png){width=32%} ![Pending admin approval](../images/app-pending.png){width=32%} ![Approved: class, fee with sibling discount, history](../images/app-approved.png){width=32%}
 
 # 6. Technical report
 
@@ -278,8 +283,7 @@ three CI jobs to pass before a pull request can be merged.
 | Mobile | 12 | all passed |
 | k6 thresholds | 4 | all met |
 
-[SCREENSHOT: GitHub Actions run with the three green jobs]
-[SCREENSHOT: `dotnet test` summary — 70 passed]
+![GitHub Actions: backend, web and mobile jobs passed](../images/gh-actions.png){width=100%}
 
 ## 7.3 Test cases (selected)
 
@@ -337,9 +341,14 @@ The agents were evaluated in two ways:
 | Child (Lichess) | Level / confidence | Proposed class | Validation | Time | Admin decision |
 |---|---|---|---|---|---|
 | Ashen (real account) | Advanced / High | Endgame Masters | all hard rules passed | ≈ 9.6 s | pending approval |
-| [STUDENT: add the runs recorded during the demo] | | | | | |
+| Kavindu (`thibault`) — demo, 6 Oct 2026 | Advanced / High | Endgame Masters, LKR 5,400 (10 % sibling discount) | all 10 rules passed | ≈ 9.8 s | approved |
+| Tharindu (`penguingim1`) — demo, 6 Oct 2026, notes contained instructions | — | — | not reached | — | failed safely: Gemini returned HTTP 503 on all 3 attempts of the Plan step; nothing booked; retry available |
 
-[SCREENSHOT: workflow review page for a live Gemini run]
+![Agent steps and tool calls with timings](../images/web-review-steps.png){width=100%}
+
+![Review page after approval](../images/web-review-approved.png){width=100%}
+
+![Safe failure when Gemini was unavailable](../images/app-failed-safely.png){width=32%}
 
 ## 8.4 Metrics
 
@@ -366,7 +375,6 @@ The agents were evaluated in two ways:
 
 <!-- include: perf/README.md -->
 
-[SCREENSHOT: k6 summary output]
 
 # 10. Deployment report
 
@@ -418,10 +426,17 @@ cd ../mobile && flutter pub get && flutter run --dart-define=API_BASE_URL=http:/
 
 ## 10.5 Deployment evidence
 
-[SCREENSHOT: Railway deployment — status Active and deploy log]
-[SCREENSHOT: Neon project — database and tables]
-[SCREENSHOT: Vercel deployment — Ready]
-[SCREENSHOT: `/health` returning Healthy in a private browser window]
+![Railway: API deployment Active](../images/railway.png){width=100%}
+
+![Neon: PostgreSQL project (Singapore)](../images/neon.png){width=100%}
+
+Availability check, 6 Oct 2026 18:27 (+05:30):
+
+```
+GET https://sef-main-assignment-production.up.railway.app/health          → 200 Healthy
+GET https://sef-main-assignment-production.up.railway.app/swagger/index.html → 200
+GET https://web-taupe-two-2l4c58eqb5.vercel.app                            → 200
+```
 
 ## 10.6 Issues met during deployment
 
@@ -532,10 +547,11 @@ Key commits (repository `ThisaraNuwanthi/sef-main-assignment`):
 | `3f04663` | k6 load test with results |
 
 Issues and pull requests: issues #1–#7 on the project board; PR #8 (README contribution and challenges, closes #1);
-[STUDENT: add the later PRs, e.g. this report].
+PR #9 (consolidated report draft, closes #2), PR #10 (report evidence).
 
-[SCREENSHOT: GitHub project board]
-[SCREENSHOT: merged pull request with passing checks]
+![GitHub project board](../images/gh-board.png){width=100%}
+
+![Merged pull request #8](../images/gh-pr.png){width=100%}
 
 Test evidence: section 7.2.
 
