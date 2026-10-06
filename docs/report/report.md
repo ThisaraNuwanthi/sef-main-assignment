@@ -1,33 +1,59 @@
----
-title: "SE3090 Assignment 1 — SKCA Enrol"
-subtitle: "Chess Academy Enrolment & Class Placement — Integrated Full-Stack and Agentic AI Application"
-author: "Thisara Nuwanthi (IT22566102) — single-member group"
-date: "30 September 2026"
----
+::: {custom-style="Cover Institute"}
+Sri Lanka Institute of Information Technology
+:::
 
-<!--
-  This file is the source of the consolidated report. Build the Word file with:
-      python3 docs/report/build.py
-  then open docs/report/build/SE3090_report.docx, add the screenshots marked [SCREENSHOT],
-  complete the parts marked [STUDENT], and export to PDF.
-  Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
--->
+::: {custom-style="Cover Logo"}
+![](../template/sliit-logo.png){width=1.5in}
+:::
+
+::: {custom-style="Cover Module"}
+SE3090 – Software Engineering Frameworks
+:::
+
+::: {custom-style="Cover Text"}
+Year 3, Semester 1 – 2026
+:::
+
+::: {custom-style="Cover Title"}
+Assignment 1: Integrated Full-Stack and Agentic AI Application
+:::
+
+::: {custom-style="Cover Subtitle"}
+SKCA Enrol – Chess Academy Enrolment & Class Placement
+:::
+
+::: {custom-style="Cover Text"}
+**IT22566102 – B D T Nuwanthi**
+:::
+
+::: {custom-style="Cover Text"}
+it22566102@my.sliit.lk
+:::
+
+::: {custom-style="Cover Text"}
+Individual submission · 6 October 2026
+:::
+
+```{=openxml}
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="TOCHeading"/></w:pPr><w:r><w:t>Contents</w:t></w:r></w:p>
+<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-2" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>Right-click here and choose Update Field to build the table of contents.</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+```
 
 # Submission details
 
 | Item | Value |
 |---|---|
 | Module | SE3090 Software Engineering Frameworks — Assignment 1 |
-| Group | [STUDENT: group number, e.g. SE3090_Gxx] — single-member group (repeat student) |
+| Submission name | SE3090_IT22566102 — individual submission (repeat student) |
 | Student | Thisara Nuwanthi — IT22566102 |
-| Group-size approval | [STUDENT: reference/date of the lecturer-in-charge's written approval] |
 | Repository | https://github.com/ThisaraNuwanthi/sef-main-assignment |
 | React web app | https://web-taupe-two-2l4c58eqb5.vercel.app |
 | API health | https://sef-main-assignment-production.up.railway.app/health |
 | Swagger UI | https://sef-main-assignment-production.up.railway.app/swagger |
 | Database | Neon PostgreSQL 16 (Singapore region) — evidence in section 10.5 |
-| Android APK | `SE3090_[group]_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
-| Demonstration video | [STUDENT: link, shared as "anyone with the link can view"] |
+| Android APK | `SE3090_IT22566102_SKCA-Enrol.apk` (submitted with this report) — install steps in section 10.4 |
+| Demonstration video | https://drive.google.com/file/d/1wkgtnDIP2Y7kw4efOd9p2eQadXM_EHhQ/view?usp=sharing |
 
 **Test accounts** (password for all: `Demo@12345`)
 
@@ -43,6 +69,28 @@ Railway environment variable `GEMINI_API_KEY`; evaluators need no key. To run lo
 `Llm__Provider=Fake` (the default), which uses a deterministic offline model.
 
 # Part A — Group Report
+
+This is an individual submission (repeat student, not assigned to a group), so the Group Report describes the
+whole system that I designed, built, tested and deployed. It follows the order required by the specification:
+
+| Section | Content |
+|---|---|
+| 1–2 | Project overview, scope, requirements, user roles and business rules |
+| 3–5 | Full-stack and agentic AI architecture, database and ER diagram, API, React and Flutter design |
+| 6 | Technical report: technology stack, agentic AI subsystem and key implementation points |
+| 7 | Software testing report: strategy, results, test cases and defects found |
+| 8 | Agentic AI evaluation report: golden cases, live runs, metrics and findings |
+| 9 | Performance report (k6 load test) |
+| 10 | Deployment report: environments, configuration, start-up, APK installation and evidence |
+| 11 | Architecture decision records (ADR 0001–0005) |
+| 12–14 | Security considerations, list of diagrams and references |
+| 15 | AI usage declaration |
+
+In short, **SKCA Enrol** lets parents request a chess class for their child from a Flutter mobile app. Four AI
+agents assess the child's level from real Lichess ratings, find a suitable class with free seats and no timetable
+clash, propose it with the correct fee, and validate every business rule. An admin then reviews and approves the
+proposal in a React web app, in a single database transaction. The ASP.NET Core API and PostgreSQL database sit
+between the two clients, and the whole system is deployed on Railway, Neon and Vercel with CI on GitHub Actions.
 
 # 1. Project overview and scope
 
@@ -137,7 +185,7 @@ immediately; a `BackgroundService` runs the agents.
 
 <!-- include: docs/architecture.md -->
 
-[SCREENSHOT: Swagger UI showing the endpoint groups]
+![Swagger UI with the JWT Authorize button](../images/swagger.png){width=100%}
 
 # 4. Database design and ER diagram
 
@@ -184,9 +232,15 @@ Recharts for the dashboard (ADR 0001).
 `ProtectedRoute` guards pages by role; `api/client.ts` is the only network code and turns ProblemDetails into
 readable errors. Every page has loading, empty, error and success states.
 
-[SCREENSHOT: Admin dashboard]
-[SCREENSHOT: Workflow review page with agent steps and validation results]
-[SCREENSHOT: Classes list with filters]
+![Admin dashboard](../images/web-dashboard.png){width=100%}
+
+![Enrolment requests list](../images/web-enrolments.png){width=100%}
+
+![Workflow review: plan and validation results](../images/web-review-validation.png){width=100%}
+
+![Coach view: own classes and rosters (read-only)](../images/web-coach.png){width=100%}
+
+![A parent account is refused on the staff website](../images/web-parent-refused.png){width=100%}
 
 ## 5.3 Flutter mobile app (Parent)
 
@@ -202,8 +256,7 @@ Flutter 3.41 with Provider/ChangeNotifier (ADR 0002), go_router with an authenti
 | Enrolment form | child picker, day chips, time pickers, notes; validated before sending |
 | Enrolment detail | status timeline, assigned class, fee, edit on revision, cancel |
 
-[SCREENSHOT: Flutter enrolment form]
-[SCREENSHOT: Flutter enrolment detail with timeline and fee]
+![Enrolment form](../images/app-form.png){width=32%} ![Pending admin approval](../images/app-pending.png){width=32%} ![Approved: class, fee with sibling discount, history](../images/app-approved.png){width=32%}
 
 # 6. Technical report
 
@@ -278,8 +331,7 @@ three CI jobs to pass before a pull request can be merged.
 | Mobile | 12 | all passed |
 | k6 thresholds | 4 | all met |
 
-[SCREENSHOT: GitHub Actions run with the three green jobs]
-[SCREENSHOT: `dotnet test` summary — 70 passed]
+![GitHub Actions: backend, web and mobile jobs passed](../images/gh-actions.png){width=100%}
 
 ## 7.3 Test cases (selected)
 
@@ -337,9 +389,14 @@ The agents were evaluated in two ways:
 | Child (Lichess) | Level / confidence | Proposed class | Validation | Time | Admin decision |
 |---|---|---|---|---|---|
 | Ashen (real account) | Advanced / High | Endgame Masters | all hard rules passed | ≈ 9.6 s | pending approval |
-| [STUDENT: add the runs recorded during the demo] | | | | | |
+| Kavindu (`thibault`) — demo, 6 Oct 2026 | Advanced / High | Endgame Masters, LKR 5,400 (10 % sibling discount) | all 10 rules passed | ≈ 9.8 s | approved |
+| Tharindu (`penguingim1`) — demo, 6 Oct 2026, notes contained instructions | — | — | not reached | — | failed safely: Gemini returned HTTP 503 on all 3 attempts of the Plan step; nothing booked; retry available |
 
-[SCREENSHOT: workflow review page for a live Gemini run]
+![Agent steps and tool calls with timings](../images/web-review-steps.png){width=100%}
+
+![Review page after approval](../images/web-review-approved.png){width=100%}
+
+![Safe failure when Gemini was unavailable](../images/app-failed-safely.png){width=32%}
 
 ## 8.4 Metrics
 
@@ -366,7 +423,6 @@ The agents were evaluated in two ways:
 
 <!-- include: perf/README.md -->
 
-[SCREENSHOT: k6 summary output]
 
 # 10. Deployment report
 
@@ -418,10 +474,17 @@ cd ../mobile && flutter pub get && flutter run --dart-define=API_BASE_URL=http:/
 
 ## 10.5 Deployment evidence
 
-[SCREENSHOT: Railway deployment — status Active and deploy log]
-[SCREENSHOT: Neon project — database and tables]
-[SCREENSHOT: Vercel deployment — Ready]
-[SCREENSHOT: `/health` returning Healthy in a private browser window]
+![Railway: API deployment Active](../images/railway.png){width=100%}
+
+![Neon: PostgreSQL project (Singapore)](../images/neon.png){width=100%}
+
+Availability check, 6 Oct 2026 18:27 (+05:30):
+
+```
+GET https://sef-main-assignment-production.up.railway.app/health          → 200 Healthy
+GET https://sef-main-assignment-production.up.railway.app/swagger/index.html → 200
+GET https://web-taupe-two-2l4c58eqb5.vercel.app                            → 200
+```
 
 ## 10.6 Issues met during deployment
 
@@ -486,18 +549,44 @@ limiting; uploaded photos are not persistent on the free host.
 
 # 15. Group AI usage declaration
 
-[STUDENT: write this in your own words. It must confirm that all AI use during development has been disclosed in
-the individual AI usage log, that every AI-assisted output was reviewed, tested and understood, and which tools
-were used. Note separately that the product itself uses Google Gemini at run time (section 6.2).]
+This is an individual submission, so this declaration covers all of the work. AI tools were used during
+development, mainly Claude Code, and every use is recorded in my AI usage log (section 20). I reviewed, ran and
+tested all AI-assisted code and documents, corrected them where they were wrong, and I understand and can explain
+every part of the submitted system.
 
-Signed: ____________________   Date: ____________
+Separately from the development process, the product itself calls Google Gemini at run time inside the agent
+workflow (section 6.2). This is part of the system's design, not a development aid.
+
+Signed: {{SIGNATURE}}
+
+Date: 6 October 2026
 
 # Part B — Individual Report: Thisara Nuwanthi (IT22566102)
 
+This part covers my individual contribution, as required for each student. As the only member, I own the single
+primary business component, **Enrolment & Class Placement**, across every layer of the system.
+
+| Section | Content |
+|---|---|
+| 16 | Contribution statement |
+| 17 | Owned component and technical work |
+| 18 | Key commit, pull-request and test evidence |
+| 19 | Challenges and learning |
+| 20 | Individual AI usage log |
+| 21 | AI reflection |
+| 22 | Signed declaration |
+
 # 16. Contribution statement
 
-[STUDENT: in your own words — you are the only member, you designed and delivered the whole system; mention the
-written approval for working alone.]
+I am a repeat student and was not placed in a group, so I completed this assignment individually and I am
+responsible for the whole system. Its one primary component, Enrolment & Class Placement, runs through all five
+required layers: the ASP.NET Core API, the PostgreSQL database, the React web app, the Flutter mobile app and the
+agentic AI workflow.
+
+I chose the domain, defined the roles, requirements and business rules, directed and reviewed the implementation,
+and tested the system by hand, which is how the timetable-clash problem in section 19 was found. I set up the
+deployment on Railway, Neon and Vercel, recorded the demonstration and prepared this report. AI assistance is
+disclosed in sections 20 and 21.
 
 # 17. Owned component and technical work
 
@@ -532,27 +621,95 @@ Key commits (repository `ThisaraNuwanthi/sef-main-assignment`):
 | `3f04663` | k6 load test with results |
 
 Issues and pull requests: issues #1–#7 on the project board; PR #8 (README contribution and challenges, closes #1);
-[STUDENT: add the later PRs, e.g. this report].
+PR #9 (consolidated report draft, closes #2), PR #10 (report evidence).
 
-[SCREENSHOT: GitHub project board]
-[SCREENSHOT: merged pull request with passing checks]
+![GitHub project board](../images/gh-board.png){width=100%}
+
+![Merged pull request #8](../images/gh-pr.png){width=100%}
 
 Test evidence: section 7.2.
 
 # 19. Challenges and learning
 
-[STUDENT: in your own words. The challenges table in the README (section 15) lists the facts: hosting without a
-card, the production start-up crash, the timetable-clash proposal, the last-seat race, prompt injection, testing
-without Gemini, environment limits and the late start / Git process. Add what you learned from each.]
+**Hosting without a card.** Render asked for card verification, and my card was refused; Hugging Face Docker
+Spaces had become paid. Because the API was already packaged as a Docker image with all settings in environment
+variables, I could move it to Railway without changing code. *Learning:* keep deployment portable, and record the
+decision (ADR 0005) so the reason is not lost.
+
+**The production start-up crash.** After the first Railway deployment the API crashed at start-up. The deploy log
+showed that the connection-string variable's value also contained its own name. *Learning:* read the logs first;
+configuration mistakes look like code bugs, and an application should fail fast with a clear message.
+
+**The agent proposed a class the child already attends.** While testing by hand with Sithmi, the workflow failed:
+the Validation and Safety agent caught a time clash, but the proposal itself was useless. The fix was to exclude
+clashing classes in the class search tool, while keeping the validation and approval checks. *Learning:* defence in
+depth works, manual exploratory testing finds problems that unit tests miss, and every fix needs a regression test.
+
+**The AI service failed during the demonstration.** When I recorded the safety test, Gemini returned HTTP 503 three
+times. The workflow stopped with the reason saved, nothing was booked, and an admin can retry it. *Learning:*
+external AI services are not always available, so timeouts, limited retries and safe failure are essential.
+
+**The last seat and prompt injection.** Two approvals could compete for the last seat, and parent notes could
+contain instructions to the AI. The approval transaction locks the class row and re-checks capacity, and notes are
+passed to the model only as data, with a human approving every placement. *Learning:* never trust the client or
+the model for business rules.
+
+**Late start and Git process.** The system was built in a short, intensive period and the early commits went
+directly to `main`. From the point I noticed this, I used issues, a project board, feature branches and pull
+requests with required CI checks. *Learning:* set up the process on the first day, not at the end.
+
+**Development environment.** Low disk space and unstable downloads of the Android SDK and NDK slowed the mobile
+build. I cleaned regenerable caches and used resumable downloads. *Learning:* check the toolchain early.
 
 # 20. Individual AI usage log
 
-[STUDENT: copy your completed log from `docs/ai-usage-log.md` — date, tool, task, what it produced, what you
-changed or rejected, how you verified it.]
+| Date | Tool | Task (what I asked for) | What it produced | What I changed / rejected | How I verified |
+|---|---|---|---|---|---|
+| 29 Sep 2026 | Claude Code (Anthropic Claude) | Turn my brief (domain, roles, required stack, four distinct agents, security rules) into a phased plan | plan, folder layout, first ADR drafts | I set the domain, scope and roles, and the rules: no secrets in files, my commit identity, no changes to my older project | checked the plan against the specification and marking scheme |
+| 29 Sep 2026 | Claude Code | ASP.NET Core API: entities, DbContext, migrations, seed data, JWT auth, controllers and services | C# code and integration tests | chose a Docker PostgreSQL instead of a local install; reviewed every endpoint in Swagger | 70 backend tests on a real PostgreSQL database; manual calls in Swagger |
+| 29 Sep 2026 | Claude Code | Agentic workflow: four agents, tools, orchestrator, fake and Gemini LLM clients | agent code and seven golden test cases | used my own Gemini key through user-secrets; my manual test showed the agents proposing a class the child already attends, so I asked for the class search to exclude timetable clashes | golden cases plus live runs with Gemini and real Lichess accounts |
+| 29 Sep 2026 | Claude Code | React admin and coach web app | pages, API client, component tests | reviewed each page and the approval flow | 11 Vitest tests; manual testing in the browser |
+| 29 Sep 2026 | Claude Code | Flutter parent app and release APK | screens, state, API client, widget tests | the first APK pointed to a placeholder URL and login failed on my phone; I had it rebuilt with the live API URL | 12 Flutter tests; installed and used the APK on my phone |
+| 29 Sep 2026 | Claude Code | Docker image, deployment configuration and GitHub Actions CI | Dockerfile, Railway and Vercel configuration, CI workflow | rejected Render (card verification failed) and Hugging Face (Docker Spaces are paid) and moved to Railway; I created the accounts and set the environment variables myself; fixed my wrong connection-string variable from the deploy logs | `/health` returns Healthy; all CI jobs pass |
+| 29 Sep 2026 | Claude Code | k6 performance test, README, ADRs and diagrams | test script and documentation | — | the figures come from my own k6 run and test results |
+| 30 Sep 2026 | Claude Code | Git process: issues, project board, branch protection, pull requests | issues #1–#7, board, protected `main` | decided to keep the original history honest and use pull requests for all later work | every later change merged through a pull request with passing checks |
+| 30 Sep–6 Oct 2026 | Claude Code | Consolidated report structure, demo script and video editing | report draft, screenshots taken from my recordings, edited demo video | I recorded every clip, chose what to cut and reviewed the final video and report | checked every figure in the report against test output and the live system |
+
+Run-time AI (part of the product, not the development process): the agents call Google Gemini (`gemini-2.5-flash`)
+through `ILlmClient`; see section 6.2.
 
 # 21. AI reflection (about one page)
 
-[STUDENT: your own writing, about one page.]
+I used Claude Code throughout this assignment, and most of the code and documentation was first produced by it
+from my instructions. My work was deciding what to build, setting the rules it had to follow, checking the output
+by running it, and correcting the direction when something was wrong. This let me deliver a complete system with an
+API, a database, two client apps, four agents, tests, CI and a live deployment, which I could not have finished
+alone in the time I had as a repeat student.
+
+The most useful part was speed with structure. The tool produced a layered API, consistent tests and documentation
+from the start, so I could spend my time on testing and on understanding the design. Golden test cases for the
+agents were especially valuable: they turned "the AI seems to work" into repeatable checks that run in CI.
+
+AI output was not always right, and the problems were usually found by running the system rather than by reading
+code. My own manual test showed the agents proposing a class that clashed with the child's timetable. The first
+Android build pointed to a placeholder address, so login failed on my phone. Deployment failed for reasons that had
+nothing to do with code: a card requirement, a paid plan and a mistyped environment variable. In each case the fix
+came from evidence such as test results, logs and the behaviour of the live system, not from trusting the tool.
+
+The biggest risk was understanding. Because the tool can write code faster than I can read it, it would be easy to
+submit something I cannot explain. To reduce this, I went through the design with the viva question notes in the
+repository, traced one complete enrolment from the Flutter app through the API, the agents and the approval
+transaction, and made sure I can explain why each safety control exists: the plan validator, the tool allow-lists,
+notes treated as data, fees calculated in code, the row lock and human approval.
+
+Building an agentic system also changed how I see AI. The agents in this project are useful because they are
+constrained: the model may only choose from classes returned by a database search, fees are never calculated by the
+model, and a human approves every placement. I applied the same idea to my own use of AI during development: I let
+it propose, but I verified and decided.
+
+If I did this again, I would start earlier, use branches and pull requests from the first commit, and write more of
+the core business logic myself before asking for help, so that my understanding grows with the code rather than
+after it.
 
 # 22. Declaration
 
@@ -561,4 +718,6 @@ that I understand and can explain every part of the submitted system.
 
 Name: Thisara Nuwanthi   Student ID: IT22566102
 
-Signature: ____________________   Date: ____________
+Signature: {{SIGNATURE}}
+
+Date: 6 October 2026

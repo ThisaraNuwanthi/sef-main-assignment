@@ -9,6 +9,9 @@
 *.jks
 *.keystore
 **/android/key.properties
+# personal files used only for local builds (e.g. the report signature)
+.local/
+hs_err_pid*.log
 
 # ---------- OS / editors ----------
 .DS_Store

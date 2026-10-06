@@ -1,11 +1,15 @@
 """Builds the consolidated report (Word) from report.md.
 
-    python3 docs/report/build.py
+    SKCA_SIGNATURE=/path/to/signature.png python3 docs/report/build.py
 
 Needs pandoc. Mermaid diagrams are rendered to PNG with the public mermaid.ink service.
-Output: docs/report/build/SE3090_report.docx (git-ignored).
+Lines in report.md of the form "<!-- include: path -->" are replaced by that file's content.
+Styles, header and footer come from template/reference.docx (template/make_reference.py).
+Output: docs/report/build/SE3090_IT22566102_Report.docx (git-ignored). Open it in Word, let Word
+update the contents page, and export it to PDF.
 """
 import base64
+import os
 import pathlib
 import re
 import subprocess
@@ -39,10 +43,13 @@ def mermaid(match: re.Match, counter=[0]) -> str:
 
 md = (HERE / "report.md").read_text(encoding="utf-8")
 md = re.sub(r"^<!-- include: (.+?) -->$", include, md, flags=re.M)
+# The signature image is kept outside the repository; set SKCA_SIGNATURE to its path.
+sig = os.environ.get("SKCA_SIGNATURE")
+md = md.replace("{{SIGNATURE}}", f"![]({sig}){{width=1.8in}}" if sig else "____________________")
 md = re.sub(r"```mermaid\n(.*?)```\n", mermaid, md, flags=re.S)
 source = OUT / "report.full.md"
 source.write_text(md, encoding="utf-8")
 
-subprocess.run(["pandoc", source.name, "-o", "SE3090_report.docx", "--toc", "--toc-depth=2",
-                "--resource-path", "."], cwd=OUT, check=True)
-print(OUT / "SE3090_report.docx")
+subprocess.run(["pandoc", source.name, "-o", "SE3090_IT22566102_Report.docx", "--reference-doc", str(HERE / "template" / "reference.docx"),
+                "--resource-path", f".:{HERE}/build"], cwd=OUT, check=True)
+print(OUT / "SE3090_IT22566102_Report.docx")
