@@ -47,6 +47,6 @@ md = re.sub(r"```mermaid\n(.*?)```\n", mermaid, md, flags=re.S)
 source = OUT / "report.full.md"
 source.write_text(md, encoding="utf-8")
 
-subprocess.run(["pandoc", source.name, "-o", "SE3090_IT22566102_Report.docx", "--toc", "--toc-depth=2",
+subprocess.run(["pandoc", source.name, "-o", "SE3090_IT22566102_Report.docx", "--reference-doc", str(HERE / "template" / "reference.docx"),
                 "--resource-path", f".:{HERE}/build"], cwd=OUT, check=True)
 print(OUT / "SE3090_IT22566102_Report.docx")

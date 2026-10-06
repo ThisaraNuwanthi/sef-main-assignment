@@ -1,16 +1,53 @@
----
-title: "SE3090 Assignment 1 — SKCA Enrol"
-subtitle: "Chess Academy Enrolment & Class Placement — Integrated Full-Stack and Agentic AI Application"
-author: "Thisara Nuwanthi (IT22566102)"
-date: "6 October 2026"
----
-
 <!--
   This file is the source of the consolidated report. Build the Word file with:
       SKCA_SIGNATURE=/path/to/signature.png python3 docs/report/build.py
-  then open docs/report/build/SE3090_IT22566102_Report.docx and export it to PDF.
+  then open docs/report/build/SE3090_IT22566102_Report.docx, let Word update the contents page,
+  and export it to PDF. Styles, header and footer come from template/reference.docx
+  (python3 docs/report/template/make_reference.py).
   Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
 -->
+
+::: {custom-style="Cover Institute"}
+Sri Lanka Institute of Information Technology
+:::
+
+::: {custom-style="Cover Logo"}
+![](../template/sliit-logo.png){width=1.5in}
+:::
+
+::: {custom-style="Cover Module"}
+SE3090 – Software Engineering Frameworks
+:::
+
+::: {custom-style="Cover Text"}
+Year 3, Semester 1 – 2026
+:::
+
+::: {custom-style="Cover Title"}
+Assignment 1: Integrated Full-Stack and Agentic AI Application
+:::
+
+::: {custom-style="Cover Subtitle"}
+SKCA Enrol – Chess Academy Enrolment & Class Placement
+:::
+
+::: {custom-style="Cover Text"}
+**IT22566102 – B D T Nuwanthi**
+:::
+
+::: {custom-style="Cover Text"}
+it22566102@my.sliit.lk
+:::
+
+::: {custom-style="Cover Text"}
+Individual submission · 6 October 2026
+:::
+
+```{=openxml}
+<w:p><w:r><w:br w:type="page"/></w:r></w:p>
+<w:p><w:pPr><w:pStyle w:val="TOCHeading"/></w:pPr><w:r><w:t>Contents</w:t></w:r></w:p>
+<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-2" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>Right-click here and choose Update Field to build the table of contents.</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+```
 
 # Submission details
 
