@@ -1,9 +1,12 @@
 """Builds the consolidated report (Word) from report.md.
 
-    python3 docs/report/build.py
+    SKCA_SIGNATURE=/path/to/signature.png python3 docs/report/build.py
 
 Needs pandoc. Mermaid diagrams are rendered to PNG with the public mermaid.ink service.
-Output: docs/report/build/SE3090_IT22566102_Report.docx (git-ignored).
+Lines in report.md of the form "<!-- include: path -->" are replaced by that file's content.
+Styles, header and footer come from template/reference.docx (template/make_reference.py).
+Output: docs/report/build/SE3090_IT22566102_Report.docx (git-ignored). Open it in Word, let Word
+update the contents page, and export it to PDF.
 """
 import base64
 import os

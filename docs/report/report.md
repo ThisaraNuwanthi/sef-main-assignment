@@ -1,12 +1,3 @@
-<!--
-  This file is the source of the consolidated report. Build the Word file with:
-      SKCA_SIGNATURE=/path/to/signature.png python3 docs/report/build.py
-  then open docs/report/build/SE3090_IT22566102_Report.docx, let Word update the contents page,
-  and export it to PDF. Styles, header and footer come from template/reference.docx
-  (python3 docs/report/template/make_reference.py).
-  Lines starting with "<!-- include: path -->" are replaced by that file's content when building.
--->
-
 ::: {custom-style="Cover Institute"}
 Sri Lanka Institute of Information Technology
 :::
