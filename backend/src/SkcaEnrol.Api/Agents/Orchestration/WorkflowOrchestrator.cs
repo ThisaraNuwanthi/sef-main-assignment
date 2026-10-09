@@ -14,6 +14,7 @@ public class AgentOptions
 
     public int MaxRetries { get; set; } = 2;           // per step, after the first attempt
     public int StepTimeoutSeconds { get; set; } = 45;  // per attempt
+    public int RetryDelaySeconds { get; set; } = 2;    // wait 2 s, then 4 s, … before retrying (lets a busy LLM recover)
     public bool RunInBackground { get; set; } = true;  // tests switch this off and call RunAsync directly
 }
 
@@ -202,6 +203,8 @@ public class WorkflowOrchestrator(
                 }
                 step.Error = message; // keep the latest error visible while retrying
             }
+            if (_options.RetryDelaySeconds > 0)
+                await Task.Delay(TimeSpan.FromSeconds(_options.RetryDelaySeconds * (attempt + 1)), ct);
         }
     }
 

@@ -28,7 +28,25 @@ public class GeminiLlmClient(HttpClient http, IOptions<LlmOptions> options, ICon
             }
         };
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, $"v1beta/models/{options.Value.Model}:generateContent")
+        // Gemini sometimes answers 503 (overloaded) or 429 (rate limit) for a short while. Instead of failing
+        // the step, try the backup model(s) once each; any other error is reported straight away.
+        var models = new[] { options.Value.Model }.Concat(options.Value.FallbackModels).Distinct().ToArray();
+        for (var i = 0; ; i++)
+        {
+            try
+            {
+                return await CallModelAsync(models[i], body, apiKey, request.AgentName, ct);
+            }
+            catch (GeminiBusyException ex) when (i < models.Length - 1)
+            {
+                logger.LogWarning("Gemini model {Model} is busy (HTTP {Status}); trying {Next}", models[i], ex.Status, models[i + 1]);
+            }
+        }
+    }
+
+    private async Task<string> CallModelAsync(string model, object body, string apiKey, string agentName, CancellationToken ct)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"v1beta/models/{model}:generateContent")
         {
             Content = JsonContent.Create(body)
         };
@@ -49,8 +67,11 @@ public class GeminiLlmClient(HttpClient http, IOptions<LlmOptions> options, ICon
         {
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Gemini returned {Status} for {Agent}", (int)response.StatusCode, request.AgentName);
-                throw new LlmUnavailableException($"Gemini returned HTTP {(int)response.StatusCode}.");
+                var status = (int)response.StatusCode;
+                logger.LogWarning("Gemini ({Model}) returned {Status} for {Agent}", model, status, agentName);
+                if (status is 429 or 500 or 503)
+                    throw new GeminiBusyException(status);
+                throw new LlmUnavailableException($"Gemini returned HTTP {status}.");
             }
 
             try
@@ -68,4 +89,10 @@ public class GeminiLlmClient(HttpClient http, IOptions<LlmOptions> options, ICon
             }
         }
     }
+}
+
+/// <summary>Gemini is temporarily overloaded or rate-limited; still a retryable LLM failure.</summary>
+public class GeminiBusyException(int status) : LlmUnavailableException($"Gemini returned HTTP {status}.")
+{
+    public int Status { get; } = status;
 }
