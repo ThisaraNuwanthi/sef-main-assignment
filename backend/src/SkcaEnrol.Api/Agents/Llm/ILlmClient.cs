@@ -22,5 +22,7 @@ public class LlmOptions
     /// <summary>"Fake" (default, offline) or "Gemini".</summary>
     public string Provider { get; set; } = "Fake";
     public string Model { get; set; } = "gemini-2.5-flash";
+    /// <summary>Tried in order when the main model is overloaded (HTTP 503) or rate-limited (429).</summary>
+    public string[] FallbackModels { get; set; } = ["gemini-3.5-flash"];
     public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com/";
 }

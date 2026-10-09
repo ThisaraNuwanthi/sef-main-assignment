@@ -69,6 +69,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Llm:Provider", "Fake");
         builder.UseSetting("Agents:RunInBackground", "false");
         builder.UseSetting("Agents:StepTimeoutSeconds", "10");
+        builder.UseSetting("Agents:RetryDelaySeconds", "0");
 
         builder.ConfigureTestServices(services =>
         {
